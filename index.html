@@ -875,8 +875,11 @@
         const SUPABASE_URL = 'https://your-project.supabase.co';
         const SUPABASE_ANON_KEY = 'your-anon-key';
 
-        // Initialize Supabase client
-        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        // Check if Supabase is properly configured
+        const isSupabaseConfigured = SUPABASE_URL !== 'https://your-project.supabase.co' && SUPABASE_ANON_KEY !== 'your-anon-key';
+
+        // Initialize Supabase client only if configured
+        const supabase = (window.supabase && isSupabaseConfigured) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
         // Audio context for generating beeps
         const createAudioContext = () => {
@@ -1640,46 +1643,58 @@
                         </>
                     )}
 
-                    <form className="auth-form" onSubmit={handleSubmit}>
-                        <input
-                            type="email"
-                            className="auth-input"
-                            placeholder="Email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                        <input
-                            type="password"
-                            className="auth-input"
-                            placeholder="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                        {error && <div className="auth-error">{error}</div>}
-                        <button type="submit" className="auth-btn" disabled={loading}>
-                            {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
-                        </button>
-
-                        {passkeySupported && !isLogin && (
-                            <button
-                                type="button"
-                                className="auth-btn secondary"
-                                onClick={handlePasskeyRegister}
-                                disabled={loading || !email}
-                            >
-                                Register with Passkey
+                    {isSupabaseConfigured ? (
+                        <form className="auth-form" onSubmit={handleSubmit}>
+                            <input
+                                type="email"
+                                className="auth-input"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                            <input
+                                type="password"
+                                className="auth-input"
+                                placeholder="Password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                            {error && <div className="auth-error">{error}</div>}
+                            <button type="submit" className="auth-btn" disabled={loading}>
+                                {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
                             </button>
-                        )}
-                    </form>
 
-                    <p className="auth-toggle">
-                        {isLogin ? "Don't have an account? " : "Already have an account? "}
-                        <a onClick={() => setIsLogin(!isLogin)}>
-                            {isLogin ? 'Sign Up' : 'Sign In'}
-                        </a>
-                    </p>
+                            {passkeySupported && !isLogin && (
+                                <button
+                                    type="button"
+                                    className="auth-btn secondary"
+                                    onClick={handlePasskeyRegister}
+                                    disabled={loading || !email}
+                                >
+                                    Register with Passkey
+                                </button>
+                            )}
+                        </form>
+                    ) : (
+                        <div className="auth-form" style={{textAlign: 'center'}}>
+                            <p style={{color: '#666', fontSize: '0.8rem', marginBottom: '15px'}}>
+                                Email login requires Supabase setup.<br/>
+                                Use Passkey or Guest mode instead.
+                            </p>
+                            {error && <div className="auth-error">{error}</div>}
+                        </div>
+                    )}
+
+                    {isSupabaseConfigured && (
+                        <p className="auth-toggle">
+                            {isLogin ? "Don't have an account? " : "Already have an account? "}
+                            <a onClick={() => setIsLogin(!isLogin)}>
+                                {isLogin ? 'Sign Up' : 'Sign In'}
+                            </a>
+                        </p>
+                    )}
 
                     <div className="auth-divider">or</div>
 
