@@ -18,7 +18,6 @@
 
         html, body {
             height: 100%;
-            height: 100dvh; /* Dynamic viewport height for mobile */
             overflow: hidden;
         }
 
@@ -26,28 +25,50 @@
             font-family: 'IBM Plex Mono', monospace;
             background: #0f0f0f;
             min-height: 100vh;
-            min-height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .container {
             width: 100%;
             height: 100vh;
-            height: 100dvh;
-            padding: 2px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
         }
 
-        /* Mobile-first E-Ink Display */
+        /* Modern E-Ink Display - Kindle Paperwhite / Boox style */
         .eink-screen {
             background: #f5f5f0;
-            border-radius: 2px;
-            padding: 8px;
+            border-radius: 3px;
+            padding: 35px 50px;
             width: 100%;
-            height: 100%;
-            box-shadow: 0 0 0 2px #1a1a1a;
+            max-width: 1400px;
+            height: 95vh;
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.08),
+                0 25px 80px rgba(0,0,0,0.5),
+                0 0 0 8px #1a1a1a,
+                0 0 0 10px #0a0a0a;
             position: relative;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+
+        /* Subtle paper texture */
+        .eink-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
+            pointer-events: none;
         }
 
         .screen-content {
@@ -56,76 +77,37 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 0; /* Important for flex children */
+            overflow-y: auto;
         }
 
-        /* Desktop enhancements */
-        @media (min-width: 768px) {
-            .container { padding: 15px; }
-            .eink-screen {
-                border-radius: 3px;
-                padding: 35px 50px;
-                max-width: 1400px;
-                margin: auto;
-                height: 95vh;
-                box-shadow:
-                    0 0 0 1px rgba(0,0,0,0.08),
-                    0 25px 80px rgba(0,0,0,0.5),
-                    0 0 0 8px #1a1a1a,
-                    0 0 0 10px #0a0a0a;
-            }
-            .eink-screen::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
-                pointer-events: none;
-            }
-        }
-
-        /* Header - Mobile first */
+        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 6px;
+            padding-bottom: 20px;
             border-bottom: 1px solid rgba(0,0,0,0.1);
-            margin-bottom: 6px;
-            flex-shrink: 0;
+            margin-bottom: 20px;
         }
 
         .header-left h1 {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
+            font-size: 1.6rem;
             font-weight: 600;
             color: #1a1a1a;
-            letter-spacing: 1px;
-        }
-
-        @media (min-width: 768px) {
-            .header {
-                padding-bottom: 20px;
-                margin-bottom: 20px;
-            }
-            .header-left h1 {
-                font-size: 1.6rem;
-                letter-spacing: 4px;
-            }
+            letter-spacing: 4px;
         }
 
         .header-left .subtitle {
-            font-size: 0.5rem;
+            font-size: 0.7rem;
             color: #888;
-            margin-top: 2px;
-            letter-spacing: 0.5px;
+            margin-top: 4px;
+            letter-spacing: 1px;
         }
 
         .header-right {
             display: flex;
-            gap: 8px;
+            gap: 25px;
         }
 
         .stat-box {
@@ -133,106 +115,74 @@
         }
 
         .stat-label {
-            font-size: 0.4rem;
+            font-size: 0.6rem;
             color: #999;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
 
         .stat-value {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
+            font-size: 1.4rem;
             font-weight: 600;
             color: #1a1a1a;
         }
 
         .level-badge {
             display: inline-block;
-            padding: 2px 6px;
+            padding: 4px 12px;
             background: #1a1a1a;
             color: #f5f5f0;
-            font-size: 0.45rem;
+            font-size: 0.65rem;
             font-weight: 500;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             border-radius: 2px;
         }
 
-        .logout-btn {
-            font-size: 0.45rem !important;
-            padding: 2px 4px !important;
-        }
-
-        @media (min-width: 768px) {
-            .header-left .subtitle { font-size: 0.7rem; margin-top: 4px; letter-spacing: 1px; }
-            .header-right { gap: 25px; }
-            .stat-label { font-size: 0.6rem; letter-spacing: 1px; }
-            .stat-value { font-size: 1.4rem; }
-            .level-badge { padding: 4px 12px; font-size: 0.65rem; letter-spacing: 1px; }
-            .logout-btn { font-size: 0.6rem !important; padding: 4px 8px !important; }
-        }
-
-        /* Main content area - Mobile first */
+        /* Main content area */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 4px 0;
-            min-height: 0;
-            overflow: hidden;
+            padding: 20px 0;
         }
 
-        @media (min-width: 768px) {
-            .main-content {
-                justify-content: center;
-                padding: 20px 0;
-            }
-        }
-
-        /* Series selector - Mobile first */
+        /* Series selector */
         .series-selector {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 6px 8px;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 12px 20px;
             background: rgba(0,0,0,0.03);
             border-radius: 3px;
-            flex-wrap: wrap;
-            flex-shrink: 0;
         }
 
         .series-label {
-            font-size: 0.5rem;
+            font-size: 0.7rem;
             color: #666;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
 
         .series-buttons {
             display: flex;
-            gap: 4px;
+            gap: 8px;
         }
 
         .series-btn {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.6rem;
+            font-size: 0.8rem;
             font-weight: 500;
-            padding: 4px 8px;
+            padding: 8px 16px;
             border: 1px solid rgba(0,0,0,0.15);
             background: transparent;
             color: #555;
             cursor: pointer;
             border-radius: 2px;
             transition: all 0.15s ease;
-        }
-
-        @media (min-width: 768px) {
-            .series-selector { gap: 15px; margin-bottom: 25px; padding: 12px 20px; }
-            .series-label { font-size: 0.7rem; letter-spacing: 1px; }
-            .series-buttons { gap: 8px; }
-            .series-btn { font-size: 0.8rem; padding: 8px 16px; }
         }
 
         .series-btn.active {
@@ -282,32 +232,29 @@
             background: #666;
         }
 
-        /* Mode tabs - Mobile first */
+        /* Mode tabs */
         .mode-tabs {
             display: flex;
             gap: 0;
-            margin-bottom: 8px;
+            margin-bottom: 30px;
             border: 1px solid rgba(0,0,0,0.15);
             border-radius: 3px;
             overflow: hidden;
-            flex-shrink: 0;
         }
 
         .mode-tab {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.55rem;
+            font-size: 0.75rem;
             font-weight: 500;
-            padding: 8px 12px;
+            padding: 12px 30px;
             border: none;
             background: transparent;
             color: #666;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             transition: all 0.15s ease;
             border-right: 1px solid rgba(0,0,0,0.1);
-            flex: 1;
-            text-align: center;
         }
 
         .mode-tab:last-child {
@@ -323,42 +270,27 @@
             background: rgba(0,0,0,0.04);
         }
 
-        @media (min-width: 768px) {
-            .mode-tabs { margin-bottom: 30px; }
-            .mode-tab { font-size: 0.75rem; padding: 12px 30px; letter-spacing: 2px; flex: none; }
-        }
-
-        /* Timer Display - Mobile first */
+        /* Timer Display - High Definition */
         .timer-display {
             text-align: center;
-            margin: 4px 0;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 0;
+            margin: 20px 0;
         }
 
         .timer-label {
-            font-size: 0.6rem;
+            font-size: 0.8rem;
             color: #888;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-
-        @media (min-width: 768px) {
-            .timer-display { margin: 20px 0; }
-            .timer-label { font-size: 0.8rem; letter-spacing: 3px; margin-bottom: 15px; }
+            letter-spacing: 3px;
+            margin-bottom: 15px;
         }
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: clamp(3rem, 15vw, 16rem);
+            font-size: 16rem;
             font-weight: 700;
             color: #0a0a0a;
-            letter-spacing: clamp(-3px, -0.5vw, -5px);
-            line-height: 1;
+            letter-spacing: -5px;
+            line-height: 0.85;
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -962,15 +894,114 @@
             max-height: 60px;
         }
 
-        /* Mobile optimizations - already mobile-first above */
-        @media (max-width: 500px) {
-            .mode-tabs { margin-bottom: 4px; }
-            .mode-tab { padding: 6px 8px; font-size: 0.5rem; letter-spacing: 0.5px; }
-            .controls { gap: 6px; margin: 6px 0; }
-            .btn { padding: 8px 16px; font-size: 0.65rem; }
-            .toggle-panels { flex-direction: column; gap: 6px; padding: 6px; }
-            .toggle-group { width: 100%; gap: 3px; }
-            .activity-section { display: none; }
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .timer-digits { font-size: 12rem; }
+        }
+
+        @media (max-width: 900px) {
+            .timer-digits { font-size: 9rem; }
+            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .header-right { justify-content: center; }
+            .toggle-panels { flex-wrap: wrap; gap: 20px; justify-content: center; }
+            .series-selector { flex-wrap: wrap; justify-content: center; }
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 4px; }
+            .eink-screen {
+                padding: 10px 8px;
+                height: auto;
+                min-height: auto;
+            }
+            .header {
+                flex-direction: row;
+                justify-content: space-between;
+                margin-bottom: 8px;
+            }
+            .header-left h1 { font-size: 0.9rem; letter-spacing: 1px; }
+            .subtitle { font-size: 0.55rem; }
+            .logout-btn { font-size: 0.5rem; padding: 2px 6px; }
+            .header-right { gap: 8px; }
+            .stat-box { gap: 2px; }
+            .stat-value { font-size: 0.9rem; }
+            .stat-label { font-size: 0.45rem; }
+            .level-badge { font-size: 0.5rem; padding: 2px 6px; }
+            .mode-tabs { margin-bottom: 8px; gap: 0; }
+            .mode-tab { padding: 8px 10px; font-size: 0.55rem; letter-spacing: 0.5px; }
+            .timer-display { margin: 5px 0; }
+            .timer-digits { font-size: 4rem; letter-spacing: -3px; line-height: 1; }
+            .timer-label { font-size: 0.6rem; margin-top: 2px; }
+            .timer-progress { margin-top: 8px; }
+            .controls { gap: 8px; margin: 8px 0; }
+            .btn { padding: 10px 20px; font-size: 0.7rem; }
+            .series-selector {
+                padding: 8px;
+                gap: 6px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .series-label { font-size: 0.55rem; width: 100%; text-align: center; margin-bottom: 2px; }
+            .series-buttons { gap: 4px; }
+            .series-btn { padding: 5px 10px; font-size: 0.6rem; }
+            .series-progress {
+                width: 100%;
+                margin-left: 0;
+                padding-left: 0;
+                border-left: none;
+                margin-top: 4px;
+                padding-top: 4px;
+                border-top: 1px solid rgba(0,0,0,0.1);
+                justify-content: center;
+            }
+            .series-dot { width: 6px; height: 6px; }
+            .series-dot.break { width: 4px; height: 4px; }
+            .toggle-panels {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 8px;
+                justify-content: space-between;
+            }
+            .toggle-group {
+                flex: 1 1 45%;
+                min-width: 140px;
+                gap: 4px;
+            }
+            .toggle-group-label { font-size: 0.5rem; margin-bottom: 2px; }
+            .toggle-item { gap: 6px; padding: 2px 0; }
+            .toggle-item label { font-size: 0.55rem; }
+            .toggle-switch { width: 28px; height: 14px; }
+            .toggle-switch::after { width: 10px; height: 10px; }
+            .toggle-switch.on::after { left: 16px; }
+            .tick-style-selector {
+                padding-left: 34px;
+                flex-wrap: wrap;
+                gap: 3px;
+                margin-top: 4px;
+            }
+            .tick-style-btn { padding: 2px 6px; font-size: 0.5rem; }
+            .reminder-settings { padding-left: 34px; margin-top: 4px; }
+            .reminder-select { font-size: 0.55rem; padding: 3px 6px; }
+            .activity-section { padding-top: 8px; margin-top: 8px; }
+            .activity-header { margin-bottom: 6px; }
+            .activity-title { font-size: 0.55rem; }
+            .activity-stats { font-size: 0.55rem; }
+            .activity-grid { gap: 1px; }
+            .activity-week { gap: 1px; }
+            .activity-day { border-radius: 0; }
+            .activity-day:hover { transform: scale(1.5); }
+            .activity-legend { font-size: 0.45rem; gap: 2px; margin-top: 4px; }
+            .legend-box { width: 6px; height: 6px; }
+            .today-log { display: none; }
+        }
+
+        @media (max-width: 380px) {
+            .timer-digits { font-size: 3rem; }
+            .header { flex-direction: column; gap: 5px; text-align: center; }
+            .header-right { justify-content: center; }
+            .toggle-group { flex: 1 1 100%; }
         }
     </style>
 </head>
