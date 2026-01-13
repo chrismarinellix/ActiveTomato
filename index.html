@@ -908,100 +908,73 @@
         }
 
         @media (max-width: 600px) {
-            .container { padding: 4px; }
+            html, body { height: 100%; height: -webkit-fill-available; }
+            .container {
+                padding: 0;
+                height: 100vh;
+                height: -webkit-fill-available;
+            }
             .eink-screen {
-                padding: 10px 8px;
-                height: auto;
-                min-height: auto;
-            }
-            .header {
-                flex-direction: row;
-                justify-content: space-between;
-                margin-bottom: 8px;
-            }
-            .header-left h1 { font-size: 0.9rem; letter-spacing: 1px; }
-            .subtitle { font-size: 0.55rem; }
-            .logout-btn { font-size: 0.5rem; padding: 2px 6px; }
-            .header-right { gap: 8px; }
-            .stat-box { gap: 2px; }
-            .stat-value { font-size: 0.9rem; }
-            .stat-label { font-size: 0.45rem; }
-            .level-badge { font-size: 0.5rem; padding: 2px 6px; }
-            .mode-tabs { margin-bottom: 8px; gap: 0; }
-            .mode-tab { padding: 8px 10px; font-size: 0.55rem; letter-spacing: 0.5px; }
-            .timer-display { margin: 5px 0; }
-            .timer-digits { font-size: 4rem; letter-spacing: -3px; line-height: 1; }
-            .timer-label { font-size: 0.6rem; margin-top: 2px; }
-            .timer-progress { margin-top: 8px; }
-            .controls { gap: 8px; margin: 8px 0; }
-            .btn { padding: 10px 20px; font-size: 0.7rem; }
-            .series-selector {
                 padding: 8px;
-                gap: 6px;
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
+                height: 100%;
+                border-radius: 0;
+                box-shadow: none;
             }
-            .series-label { font-size: 0.55rem; width: 100%; text-align: center; margin-bottom: 2px; }
-            .series-buttons { gap: 4px; }
-            .series-btn { padding: 5px 10px; font-size: 0.6rem; }
-            .series-progress {
-                width: 100%;
-                margin-left: 0;
-                padding-left: 0;
-                border-left: none;
-                margin-top: 4px;
-                padding-top: 4px;
-                border-top: 1px solid rgba(0,0,0,0.1);
-                justify-content: center;
+            .screen-content { overflow: hidden; }
+            .header {
+                padding-bottom: 6px;
+                margin-bottom: 6px;
             }
+            .header-left h1 { font-size: 0.8rem; letter-spacing: 1px; }
+            .header-left .subtitle { font-size: 0.5rem; margin-top: 2px; }
+            .logout-btn { font-size: 0.45rem !important; padding: 2px 4px !important; }
+            .header-right { gap: 10px; }
+            .stat-value { font-size: 0.85rem; }
+            .stat-label { font-size: 0.4rem; }
+            .level-badge { font-size: 0.45rem; padding: 2px 6px; }
+            .main-content { padding: 0; justify-content: space-around; }
+            .series-selector {
+                padding: 6px;
+                gap: 4px;
+                margin-bottom: 6px;
+            }
+            .series-label { font-size: 0.5rem; }
+            .series-buttons { gap: 3px; }
+            .series-btn { padding: 4px 8px; font-size: 0.55rem; }
+            .series-progress { margin-left: 8px; padding-left: 8px; gap: 4px; }
             .series-dot { width: 6px; height: 6px; }
             .series-dot.break { width: 4px; height: 4px; }
+            .mode-tabs { margin-bottom: 6px; }
+            .mode-tab { padding: 6px 10px; font-size: 0.5rem; letter-spacing: 0.5px; }
+            .timer-display { margin: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+            .timer-digits { font-size: 18vw; letter-spacing: -2px; line-height: 1; }
+            .timer-label { font-size: 0.5rem; margin-bottom: 4px; }
+            .timer-progress { margin-top: 6px; }
+            .controls { gap: 8px; margin: 6px 0; }
+            .btn { padding: 10px 20px; font-size: 0.65rem; }
             .toggle-panels {
-                flex-direction: row;
+                gap: 6px;
+                padding: 6px;
                 flex-wrap: wrap;
-                gap: 8px;
-                padding: 8px;
-                justify-content: space-between;
             }
-            .toggle-group {
-                flex: 1 1 45%;
-                min-width: 140px;
-                gap: 4px;
-            }
-            .toggle-group-label { font-size: 0.5rem; margin-bottom: 2px; }
-            .toggle-item { gap: 6px; padding: 2px 0; }
-            .toggle-item label { font-size: 0.55rem; }
-            .toggle-switch { width: 28px; height: 14px; }
-            .toggle-switch::after { width: 10px; height: 10px; }
-            .toggle-switch.on::after { left: 16px; }
-            .tick-style-selector {
-                padding-left: 34px;
-                flex-wrap: wrap;
-                gap: 3px;
-                margin-top: 4px;
-            }
-            .tick-style-btn { padding: 2px 6px; font-size: 0.5rem; }
-            .reminder-settings { padding-left: 34px; margin-top: 4px; }
-            .reminder-select { font-size: 0.55rem; padding: 3px 6px; }
-            .activity-section { padding-top: 8px; margin-top: 8px; }
-            .activity-header { margin-bottom: 6px; }
-            .activity-title { font-size: 0.55rem; }
-            .activity-stats { font-size: 0.55rem; }
-            .activity-grid { gap: 1px; }
-            .activity-week { gap: 1px; }
-            .activity-day { border-radius: 0; }
-            .activity-day:hover { transform: scale(1.5); }
-            .activity-legend { font-size: 0.45rem; gap: 2px; margin-top: 4px; }
-            .legend-box { width: 6px; height: 6px; }
-            .today-log { display: none; }
+            .toggle-group { gap: 3px; }
+            .toggle-group-label { font-size: 0.45rem; margin-bottom: 2px; }
+            .toggle-item { gap: 5px; padding: 1px 0; }
+            .toggle-item label { font-size: 0.5rem; }
+            .toggle-switch { width: 26px; height: 13px; }
+            .toggle-switch::after { width: 9px; height: 9px; }
+            .toggle-switch.on::after { left: 15px; }
+            .tick-style-selector { padding-left: 31px; gap: 2px; margin-top: 2px; }
+            .tick-style-btn { padding: 2px 5px; font-size: 0.45rem; }
+            .reminder-settings { padding-left: 31px; margin-top: 2px; }
+            .reminder-select { font-size: 0.5rem; padding: 2px 5px; }
+            .activity-section { display: none; }
         }
 
         @media (max-width: 380px) {
-            .timer-digits { font-size: 3rem; }
-            .header { flex-direction: column; gap: 5px; text-align: center; }
-            .header-right { justify-content: center; }
-            .toggle-group { flex: 1 1 100%; }
+            .timer-digits { font-size: 16vw; }
+            .series-selector { display: none; }
+            .toggle-panels { display: none; }
         }
     </style>
 </head>
