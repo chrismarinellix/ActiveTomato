@@ -21,6 +21,13 @@
             overflow: hidden;
         }
 
+        @media (max-width: 600px) {
+            html, body {
+                overflow: auto;
+                height: auto;
+            }
+        }
+
         body {
             font-family: 'IBM Plex Mono', monospace;
             background: #0f0f0f;
@@ -934,11 +941,16 @@
         }
 
         @media (max-width: 600px) {
-            .container { padding: 8px; }
+            .container {
+                padding: 8px;
+                height: auto;
+                min-height: 100vh;
+            }
             .eink-screen {
                 padding: 15px 12px;
                 height: auto;
-                min-height: 100vh;
+                min-height: auto;
+                overflow: visible;
             }
             .header-left h1 { font-size: 1.2rem; letter-spacing: 2px; }
             .header-left .subtitle {
@@ -1639,26 +1651,19 @@
                         };
 
                         const channel = supabase
-                            .channel('timer-sync-' + user.id)
+                            .channel('timer-sync')
                             .on('postgres_changes', {
-                                event: 'INSERT',
+                                event: '*',
                                 schema: 'public',
                                 table: 'timer_state',
                                 filter: `user_id=eq.${user.id}`
                             }, handleTimerUpdate)
-                            .on('postgres_changes', {
-                                event: 'UPDATE',
-                                schema: 'public',
-                                table: 'timer_state',
-                                filter: `user_id=eq.${user.id}`
-                            }, handleTimerUpdate)
-                            .subscribe((status, err) => {
-                                console.log('Realtime subscription status:', status, err || '');
+                            .subscribe((status) => {
+                                console.log('Realtime subscription status:', status);
                                 if (status === 'SUBSCRIBED') {
                                     setSyncStatus('connected');
                                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
                                     setSyncStatus('error');
-                                    console.error('Realtime subscription error:', status, err);
                                 }
                             });
 
