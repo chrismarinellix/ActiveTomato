@@ -60,6 +60,18 @@ CREATE TABLE IF NOT EXISTS public.activity_log (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Timer state for real-time sync across devices
+CREATE TABLE IF NOT EXISTS public.timer_state (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+    is_running BOOLEAN DEFAULT false,
+    mode TEXT DEFAULT 'work' CHECK (mode IN ('work', 'shortBreak', 'longBreak')),
+    time_left INTEGER DEFAULT 1500,
+    started_at TIMESTAMPTZ,
+    series_target INTEGER DEFAULT 1,
+    series_progress INTEGER DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_pomodoro_sessions_user_date ON public.pomodoro_sessions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_activity_user_date ON public.daily_activity(user_id, date);
@@ -71,6 +83,7 @@ ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pomodoro_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.timer_state ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: users can only see/edit their own profile
 CREATE POLICY "Users can view own profile" ON public.profiles
@@ -106,6 +119,14 @@ CREATE POLICY "Users can view own activity log" ON public.activity_log
 CREATE POLICY "Users can insert own activity log" ON public.activity_log
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- Timer state: users can only see/manage their own
+CREATE POLICY "Users can view own timer state" ON public.timer_state
+    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own timer state" ON public.timer_state
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own timer state" ON public.timer_state
+    FOR UPDATE USING (auth.uid() = user_id);
+
 -- Function to handle new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -114,6 +135,9 @@ BEGIN
     VALUES (NEW.id, NEW.email);
 
     INSERT INTO public.user_settings (user_id)
+    VALUES (NEW.id);
+
+    INSERT INTO public.timer_state (user_id)
     VALUES (NEW.id);
 
     RETURN NEW;
@@ -164,3 +188,7 @@ BEGIN
     RETURN new_total;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Enable Realtime for timer_state (for cross-device sync)
+-- Note: Also enable in Supabase Dashboard > Database > Replication > timer_state
+ALTER PUBLICATION supabase_realtime ADD TABLE public.timer_state;

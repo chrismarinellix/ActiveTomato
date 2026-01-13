@@ -904,10 +904,12 @@
         /* Responsive */
         @media (max-width: 1200px) {
             .timer-digits { font-size: 12rem; }
+            .compact .timer-digits { font-size: 12rem; }
         }
 
         @media (max-width: 900px) {
             .timer-digits { font-size: 9rem; }
+            .compact .timer-digits { font-size: 9rem; }
             .header { flex-direction: column; gap: 15px; text-align: center; }
             .header-right { justify-content: center; }
             .toggle-panels { flex-wrap: wrap; gap: 20px; justify-content: center; }
@@ -926,6 +928,7 @@
             .stat-value { font-size: 1.1rem; }
             .level-badge { font-size: 0.55rem; padding: 3px 8px; }
             .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .compact .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
             .timer-label { font-size: 0.7rem; }
             .controls { flex-direction: row; gap: 10px; }
             .btn { padding: 12px 25px; font-size: 0.75rem; }
@@ -983,10 +986,28 @@
             .today-log { padding: 10px; max-height: 80px; }
             .today-log-title { font-size: 0.55rem; }
             .log-entry { font-size: 0.6rem; }
+
+            /* Compact class overrides for mobile */
+            .eink-screen.compact {
+                padding: 15px 12px;
+                height: auto;
+                min-height: 100vh;
+                overflow-y: auto;
+            }
+            .compact .timer-display { margin: 8px 0; }
+            .compact .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .compact .toggle-panels {
+                padding: 15px;
+                gap: 15px;
+            }
+            .compact .activity-section { padding-top: 15px; }
+            .compact .today-log { max-height: 80px; }
         }
 
         @media (max-width: 380px) {
             .timer-digits { font-size: 3.5rem; }
+            .compact .timer-digits { font-size: 3.5rem; }
+            .eink-screen.compact { padding: 10px 8px; }
             .header-right { flex-wrap: wrap; gap: 10px; }
             .stat-box { min-width: 60px; }
         }
@@ -1318,6 +1339,162 @@
             }
         };
 
+        // Save pomodoro session to Supabase
+        async function saveSessionToSupabase(userId, sessionType, durationSeconds, points) {
+            if (!supabase || !userId) return;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Save individual session
+                await supabase.from('pomodoro_sessions').insert({
+                    user_id: userId,
+                    session_type: sessionType,
+                    duration_seconds: durationSeconds,
+                    points_earned: points,
+                    date: today
+                });
+
+                // Update daily activity
+                const { data: existing } = await supabase
+                    .from('daily_activity')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', today)
+                    .single();
+
+                if (existing) {
+                    await supabase.from('daily_activity')
+                        .update({
+                            pomodoros_completed: existing.pomodoros_completed + 1,
+                            total_focus_minutes: existing.total_focus_minutes + Math.floor(durationSeconds / 60),
+                            points_earned: existing.points_earned + points
+                        })
+                        .eq('user_id', userId)
+                        .eq('date', today);
+                } else {
+                    await supabase.from('daily_activity').insert({
+                        user_id: userId,
+                        date: today,
+                        pomodoros_completed: 1,
+                        total_focus_minutes: Math.floor(durationSeconds / 60),
+                        points_earned: points
+                    });
+                }
+
+                // Update profile points
+                await supabase.from('profiles')
+                    .update({ total_points: supabase.rpc ? undefined : points })
+                    .eq('id', userId);
+
+                // Try RPC if available
+                await supabase.rpc('add_user_points', { p_user_id: userId, p_points: points }).catch(() => {});
+
+                console.log('Session saved to Supabase');
+            } catch (err) {
+                console.error('Error saving to Supabase:', err);
+            }
+        }
+
+        // Load user data from Supabase
+        async function loadUserDataFromSupabase(userId) {
+            if (!supabase || !userId) return null;
+            try {
+                // Load profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('total_points')
+                    .eq('id', userId)
+                    .single();
+
+                // Load daily activity for the year
+                const yearAgo = new Date();
+                yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+                const { data: activity } = await supabase
+                    .from('daily_activity')
+                    .select('date, pomodoros_completed')
+                    .eq('user_id', userId)
+                    .gte('date', yearAgo.toISOString().split('T')[0]);
+
+                // Convert to activityData format
+                const activityMap = {};
+                if (activity) {
+                    activity.forEach(row => {
+                        activityMap[row.date] = row.pomodoros_completed;
+                    });
+                }
+
+                // Get today's count
+                const today = new Date().toISOString().split('T')[0];
+                const todayCount = activityMap[today] || 0;
+
+                return {
+                    totalPoints: profile?.total_points || 0,
+                    activityData: activityMap,
+                    todayCount: todayCount
+                };
+            } catch (err) {
+                console.error('Error loading from Supabase:', err);
+                return null;
+            }
+        }
+
+        // Save timer state to Supabase for cross-device sync
+        async function saveTimerState(userId, state) {
+            if (!supabase || !userId) return;
+            try {
+                const { error } = await supabase.from('timer_state').upsert({
+                    user_id: userId,
+                    is_running: state.isRunning,
+                    mode: state.mode,
+                    time_left: state.timeLeft,
+                    started_at: state.isRunning ? new Date().toISOString() : null,
+                    series_target: state.seriesTarget,
+                    series_progress: state.seriesProgress,
+                    updated_at: new Date().toISOString()
+                });
+                if (error) console.error('Error saving timer state:', error);
+            } catch (err) {
+                console.error('Error saving timer state:', err);
+            }
+        }
+
+        // Load timer state from Supabase
+        async function loadTimerState(userId) {
+            if (!supabase || !userId) return null;
+            try {
+                const { data, error } = await supabase
+                    .from('timer_state')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    console.error('Error loading timer state:', error);
+                    return null;
+                }
+
+                if (data) {
+                    // Calculate current time_left if timer was running
+                    let timeLeft = data.time_left;
+                    if (data.is_running && data.started_at) {
+                        const elapsed = Math.floor((Date.now() - new Date(data.started_at).getTime()) / 1000);
+                        timeLeft = Math.max(0, data.time_left - elapsed);
+                    }
+                    return {
+                        isRunning: data.is_running && timeLeft > 0,
+                        mode: data.mode,
+                        timeLeft: timeLeft,
+                        seriesTarget: data.series_target,
+                        seriesProgress: data.series_progress
+                    };
+                }
+                return null;
+            } catch (err) {
+                console.error('Error loading timer state:', err);
+                return null;
+            }
+        }
+
         function ActiveTomato({ user, onLogout }) {
             const [mode, setMode] = useState('work');
             const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -1326,6 +1503,7 @@
             const [seriesTarget, setSeriesTarget] = useState(1);
             const [seriesProgress, setSeriesProgress] = useState(0);
             const [seriesPhase, setSeriesPhase] = useState('work'); // 'work' or 'break'
+            const [dataLoaded, setDataLoaded] = useState(false);
 
             const [totalPoints, setTotalPoints] = useState(() => {
                 const saved = localStorage.getItem('activeTomatoPoints');
@@ -1345,6 +1523,23 @@
                 const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), entries: [] };
                 return data.date !== new Date().toDateString() ? { date: new Date().toDateString(), entries: [] } : data;
             });
+
+            // Load data from Supabase on mount
+            useEffect(() => {
+                if (user?.id && !dataLoaded) {
+                    loadUserDataFromSupabase(user.id).then(data => {
+                        if (data) {
+                            setTotalPoints(data.totalPoints);
+                            setActivityData(data.activityData);
+                            setTodayPomodoros(prev => ({ ...prev, count: data.todayCount }));
+                            // Also save to localStorage as backup
+                            localStorage.setItem('activeTomatoPoints', data.totalPoints);
+                            localStorage.setItem('activeTomatoActivity', JSON.stringify(data.activityData));
+                        }
+                        setDataLoaded(true);
+                    });
+                }
+            }, [user, dataLoaded]);
 
             // Sound toggles
             const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1517,6 +1712,11 @@
                     setSessionsCompleted(newSessions);
 
                     addLogEntry(`Completed pomodoro! +${points} pts`);
+
+                    // Save to Supabase
+                    if (user?.id) {
+                        saveSessionToSupabase(user.id, 'work', durations.work, points);
+                    }
 
                     if (soundEnabled && audioCtxRef.current) {
                         playCompletionSound(audioCtxRef.current);
