@@ -903,17 +903,85 @@
             .timer-digits { font-size: 9rem; }
             .header { flex-direction: column; gap: 15px; text-align: center; }
             .header-right { justify-content: center; }
-            .toggle-panels { flex-wrap: wrap; gap: 25px; }
+            .toggle-panels { flex-wrap: wrap; gap: 20px; justify-content: center; }
             .series-selector { flex-wrap: wrap; justify-content: center; }
         }
 
         @media (max-width: 600px) {
-            .eink-screen { padding: 20px 15px; }
-            .timer-digits { font-size: 6rem; letter-spacing: 0; }
-            .controls { flex-direction: column; }
-            .btn { width: 100%; }
-            .series-buttons { flex-wrap: wrap; justify-content: center; }
-            .mode-tab { padding: 10px 15px; font-size: 0.65rem; }
+            .container { padding: 8px; }
+            .eink-screen {
+                padding: 15px 12px;
+                height: auto;
+                min-height: 100vh;
+            }
+            .header-left h1 { font-size: 1.2rem; letter-spacing: 2px; }
+            .header-right { gap: 15px; }
+            .stat-value { font-size: 1.1rem; }
+            .level-badge { font-size: 0.55rem; padding: 3px 8px; }
+            .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .timer-label { font-size: 0.7rem; }
+            .controls { flex-direction: row; gap: 10px; }
+            .btn { padding: 12px 25px; font-size: 0.75rem; }
+            .series-selector {
+                padding: 10px;
+                gap: 10px;
+                flex-direction: column;
+                align-items: center;
+            }
+            .series-label { margin-bottom: 5px; }
+            .series-buttons { flex-wrap: wrap; justify-content: center; gap: 6px; }
+            .series-btn { padding: 6px 12px; font-size: 0.7rem; }
+            .series-progress {
+                margin-left: 0;
+                padding-left: 0;
+                border-left: none;
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid rgba(0,0,0,0.1);
+            }
+            .mode-tabs { margin-bottom: 15px; }
+            .mode-tab { padding: 10px 12px; font-size: 0.6rem; letter-spacing: 1px; }
+            .toggle-panels {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            .toggle-group {
+                width: 100%;
+                padding-bottom: 12px;
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+            }
+            .toggle-group:last-child { border-bottom: none; padding-bottom: 0; }
+            .toggle-group-label { font-size: 0.55rem; }
+            .toggle-item label { font-size: 0.65rem; }
+            .toggle-switch { width: 34px; height: 18px; }
+            .toggle-switch::after { width: 14px; height: 14px; }
+            .toggle-switch.on::after { left: 18px; }
+            .tick-style-selector {
+                padding-left: 44px;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .tick-style-btn { padding: 3px 8px; font-size: 0.55rem; }
+            .reminder-settings { padding-left: 44px; }
+            .reminder-select { font-size: 0.65rem; padding: 4px 8px; }
+            .activity-section { padding-top: 15px; }
+            .activity-header { margin-bottom: 8px; }
+            .activity-title { font-size: 0.6rem; }
+            .activity-stats { font-size: 0.6rem; }
+            .activity-grid { gap: 2px; }
+            .activity-day { border-radius: 0; }
+            .activity-legend { font-size: 0.5rem; gap: 2px; }
+            .legend-box { width: 8px; height: 8px; }
+            .today-log { padding: 10px; max-height: 80px; }
+            .today-log-title { font-size: 0.55rem; }
+            .log-entry { font-size: 0.6rem; }
+        }
+
+        @media (max-width: 380px) {
+            .timer-digits { font-size: 3.5rem; }
+            .header-right { flex-wrap: wrap; gap: 10px; }
+            .stat-box { min-width: 60px; }
         }
     </style>
 </head>
@@ -946,13 +1014,34 @@
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 oscillator.frequency.value = frequency;
-                oscillator.type = 'square';
-                gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime + delay);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + duration);
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+                gainNode.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + delay + 0.02);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + delay + duration);
                 oscillator.start(audioCtx.currentTime + delay);
                 oscillator.stop(audioCtx.currentTime + delay + duration);
             };
-            for (let i = 0; i < count; i++) playOne(i * 0.18);
+            for (let i = 0; i < count; i++) playOne(i * 0.25);
+        };
+
+        const playProgressBeep = (audioCtx, count = 1) => {
+            if (!audioCtx) return;
+            // Soft, gentle progress indicator
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = 220;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.2);
+                }, i * 300);
+            }
         };
 
         const playCompletionSound = (audioCtx) => {
@@ -1180,6 +1269,7 @@
             // Sound toggles
             const [soundEnabled, setSoundEnabled] = useState(true);
             const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(true);
+            const [beepInterval, setBeepInterval] = useState(5); // 1 or 5 minutes
             const [tickSoundEnabled, setTickSoundEnabled] = useState(false);
             const [tickStyle, setTickStyle] = useState('soft');
 
@@ -1424,15 +1514,16 @@
 
                             if (intervalSoundEnabled && audioCtxRef.current && mode === 'work') {
                                 const elapsed = durations[mode] - newTime;
-                                const fiveMinIntervals = Math.floor(elapsed / 300);
-                                if (fiveMinIntervals > lastIntervalRef.current && fiveMinIntervals > 0) {
-                                    lastIntervalRef.current = fiveMinIntervals;
-                                    playBeep(audioCtxRef.current, 500, 0.08, fiveMinIntervals);
+                                const intervalSeconds = beepInterval * 60;
+                                const intervals = Math.floor(elapsed / intervalSeconds);
+                                if (intervals > lastIntervalRef.current && intervals > 0) {
+                                    lastIntervalRef.current = intervals;
+                                    playProgressBeep(audioCtxRef.current, intervals);
                                 }
                             }
 
                             if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
-                                playBeep(audioCtxRef.current, 600, 0.1, 3);
+                                playProgressBeep(audioCtxRef.current, 2);
                             }
 
                             return newTime;
@@ -1443,7 +1534,7 @@
                 }
 
                 return () => clearInterval(interval);
-            }, [isRunning, timeLeft, mode, intervalSoundEnabled, soundEnabled, tickSoundEnabled, tickStyle, completeSession]);
+            }, [isRunning, timeLeft, mode, intervalSoundEnabled, beepInterval, soundEnabled, tickSoundEnabled, tickStyle, completeSession]);
 
             const progress = ((durations[mode] - timeLeft) / durations[mode]) * 100;
             const isWarning = timeLeft <= 60 && isRunning;
@@ -1590,9 +1681,26 @@
                                             <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
                                             <label>Completion Sound</label>
                                         </div>
-                                        <div className="toggle-item tooltip" data-tooltip="Beep every 5 minutes: 1 beep at 5min, 2 at 10min, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Beep at intervals: 1 beep at first interval, 2 at second, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
                                             <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
                                             <label>Progress Beeps</label>
+                                        </div>
+                                        <div className={`tick-style-selector ${!intervalSoundEnabled ? 'disabled' : ''}`}>
+                                            {[1, 5].map(mins => (
+                                                <button
+                                                    key={mins}
+                                                    className={`tick-style-btn ${beepInterval === mins ? 'active' : ''}`}
+                                                    disabled={!intervalSoundEnabled}
+                                                    onClick={() => {
+                                                        if (!intervalSoundEnabled) return;
+                                                        initAudio();
+                                                        setBeepInterval(mins);
+                                                        playProgressBeep(audioCtxRef.current, 1);
+                                                    }}
+                                                >
+                                                    {mins} min
+                                                </button>
+                                            ))}
                                         </div>
                                         <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !tickSoundEnabled); setTickSoundEnabled(!tickSoundEnabled); }}>
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
