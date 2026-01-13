@@ -2086,7 +2086,7 @@
                             <div className="main-content">
                                 {/* Series Selector */}
                                 <div className="series-selector tooltip" data-tooltip="Plan multiple pomodoros in a row with automatic breaks">
-                                    <span className="series-label">Batch</span>
+                                    <span className="series-label">Chain</span>
                                     <div className="series-buttons">
                                         {[1, 2, 3, 4, 5, 6].map(n => (
                                             <button
@@ -2215,7 +2215,7 @@
                                     </div>
 
                                     <div className="toggle-group">
-                                        <div className="toggle-group-label">Batch Mode</div>
+                                        <div className="toggle-group-label">Chain Mode</div>
                                         <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !autoSeriesEnabled); setAutoSeriesEnabled(!autoSeriesEnabled); }}>
                                             <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
                                             <label>Chain Sessions</label>
@@ -2358,30 +2358,56 @@
                     const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
 
                     if (existingPasskeys.length === 0) {
-                        // No passkeys - prompt to create one
+                        // No passkeys - need to create one
+                        // First, sign in with Supabase to get the real user ID
                         const userEmail = prompt('Enter your email to create a passkey:');
                         if (!userEmail) {
                             setLoading(false);
                             return;
                         }
+                        const userPassword = prompt('Enter your password (to link passkey to your account):');
+                        if (!userPassword) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        // Sign in to Supabase to get the real user ID
+                        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                            email: userEmail,
+                            password: userPassword
+                        });
+
+                        if (signInError) {
+                            setError('Sign in failed: ' + signInError.message);
+                            setLoading(false);
+                            return;
+                        }
+
+                        const supabaseUserId = signInData.user.id;
 
                         const challenge = generateChallenge();
-                        const userId = new TextEncoder().encode(userEmail);
+                        const passkeyUserId = new TextEncoder().encode(userEmail);
 
                         const credential = await navigator.credentials.create({
                             publicKey: {
                                 challenge,
                                 rp: { name: 'ActiveTomato', id: window.location.hostname },
-                                user: { id: userId, name: userEmail, displayName: userEmail.split('@')[0] },
+                                user: { id: passkeyUserId, name: userEmail, displayName: userEmail.split('@')[0] },
                                 pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
                                 authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred', residentKey: 'preferred' },
                                 timeout: 60000
                             }
                         });
 
-                        const passkeyData = { credentialId: bufferToBase64(credential.rawId), email: userEmail, createdAt: new Date().toISOString() };
+                        // Store passkey with Supabase user ID
+                        const passkeyData = {
+                            credentialId: bufferToBase64(credential.rawId),
+                            email: userEmail,
+                            supabaseUserId: supabaseUserId,
+                            createdAt: new Date().toISOString()
+                        };
                         localStorage.setItem('activeTomatoPasskeys', JSON.stringify([passkeyData]));
-                        onAuth({ email: userEmail, id: credential.id, passkey: true });
+                        onAuth({ email: userEmail, id: supabaseUserId, passkey: true });
                         return;
                     }
 
@@ -2406,7 +2432,9 @@
                     const matchedPasskey = existingPasskeys.find(pk => pk.credentialId === usedCredentialId);
 
                     if (matchedPasskey) {
-                        onAuth({ email: matchedPasskey.email, id: assertion.id, passkey: true });
+                        // Use the stored Supabase user ID, not the WebAuthn assertion ID
+                        const userId = matchedPasskey.supabaseUserId || matchedPasskey.email;
+                        onAuth({ email: matchedPasskey.email, id: userId, passkey: true });
                     } else {
                         setError('Passkey not recognized');
                     }
