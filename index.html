@@ -497,6 +497,15 @@
             border-color: #1a1a1a;
         }
 
+        .tick-style-selector.disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .tick-style-btn:disabled {
+            cursor: default;
+        }
+
         /* Activity Section */
         .activity-section {
             margin-top: auto;
@@ -1589,23 +1598,23 @@
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
                                             <label>Countdown Tick</label>
                                         </div>
-                                        {tickSoundEnabled && (
-                                            <div className="tick-style-selector">
-                                                {['soft', 'click', 'pulse', 'woodblock'].map(style => (
-                                                    <button
-                                                        key={style}
-                                                        className={`tick-style-btn ${tickStyle === style ? 'active' : ''}`}
-                                                        onClick={() => {
-                                                            initAudio();
-                                                            setTickStyle(style);
-                                                            playTickSound(audioCtxRef.current, style);
-                                                        }}
-                                                    >
-                                                        {style}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <div className={`tick-style-selector ${!tickSoundEnabled ? 'disabled' : ''}`}>
+                                            {['soft', 'click', 'pulse', 'woodblock'].map(style => (
+                                                <button
+                                                    key={style}
+                                                    className={`tick-style-btn ${tickStyle === style ? 'active' : ''}`}
+                                                    disabled={!tickSoundEnabled}
+                                                    onClick={() => {
+                                                        if (!tickSoundEnabled) return;
+                                                        initAudio();
+                                                        setTickStyle(style);
+                                                        playTickSound(audioCtxRef.current, style);
+                                                    }}
+                                                >
+                                                    {style}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <div className="toggle-group">
