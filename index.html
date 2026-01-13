@@ -907,75 +907,103 @@
             .series-selector { flex-wrap: wrap; justify-content: center; }
         }
 
+        /* Mobile: Fixed viewport, no scrolling */
         @media (max-width: 600px) {
-            html, body { height: 100%; height: -webkit-fill-available; }
+            html, body {
+                height: 100%;
+                height: 100dvh;
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+            }
             .container {
                 padding: 0;
-                height: 100vh;
-                height: -webkit-fill-available;
+                height: 100dvh;
+                overflow: hidden;
             }
             .eink-screen {
-                padding: 8px;
+                padding: 12px;
                 height: 100%;
                 border-radius: 0;
                 box-shadow: none;
+                display: flex;
+                flex-direction: column;
             }
-            .screen-content { overflow: visible; }
-            .controls { position: relative; z-index: 10; gap: 8px; margin: 6px 0; }
-            .btn { min-height: 44px; touch-action: manipulation; }
+            .eink-screen::before { display: none; }
+            .screen-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            /* Minimal header */
             .header {
-                padding-bottom: 6px;
-                margin-bottom: 6px;
+                flex-shrink: 0;
+                padding-bottom: 8px;
+                margin-bottom: 0;
             }
-            .header-left h1 { font-size: 0.8rem; letter-spacing: 1px; }
-            .header-left .subtitle { font-size: 0.5rem; margin-top: 2px; }
-            .logout-btn { font-size: 0.45rem !important; padding: 2px 4px !important; }
-            .header-right { gap: 10px; }
-            .stat-value { font-size: 0.85rem; }
+            .header-left h1 { font-size: 0.75rem; }
+            .header-left .subtitle { display: none; }
+            .logout-btn { font-size: 0.5rem !important; padding: 3px 6px !important; }
+            .header-right { gap: 12px; }
+            .stat-box { gap: 2px; }
+            .stat-value { font-size: 0.8rem; }
             .stat-label { font-size: 0.4rem; }
-            .level-badge { font-size: 0.45rem; padding: 2px 6px; }
-            .main-content { padding: 0; justify-content: space-around; }
-            .series-selector {
-                padding: 6px;
-                gap: 4px;
-                margin-bottom: 6px;
+            .level-badge { font-size: 0.5rem; padding: 3px 8px; }
+            /* Main content fills remaining space */
+            .main-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 0;
+                overflow: hidden;
             }
-            .series-label { font-size: 0.5rem; }
-            .series-buttons { gap: 3px; }
-            .series-btn { padding: 4px 8px; font-size: 0.55rem; }
-            .series-progress { margin-left: 8px; padding-left: 8px; gap: 4px; }
-            .series-dot { width: 6px; height: 6px; }
-            .series-dot.break { width: 4px; height: 4px; }
-            .mode-tabs { margin-bottom: 6px; }
-            .mode-tab { padding: 6px 10px; font-size: 0.5rem; letter-spacing: 0.5px; }
-            .timer-display { margin: 0; flex: 1; display: flex; flex-direction: column; justify-content: center; }
-            .timer-digits { font-size: 12vw; letter-spacing: -2px; line-height: 1; }
-            .timer-label { font-size: 0.5rem; margin-bottom: 4px; }
-            .timer-progress { margin-top: 6px; }
-            .btn { padding: 10px 20px; font-size: 0.65rem; }
-            .toggle-panels {
-                gap: 6px;
-                padding: 6px;
-                flex-wrap: wrap;
-            }
-            .toggle-group { gap: 3px; }
-            .toggle-group-label { font-size: 0.45rem; margin-bottom: 2px; }
-            .toggle-item { gap: 5px; padding: 1px 0; }
-            .toggle-item label { font-size: 0.5rem; }
-            .toggle-switch { width: 26px; height: 13px; }
-            .toggle-switch::after { width: 9px; height: 9px; }
-            .toggle-switch.on::after { left: 15px; }
-            .tick-style-selector { padding-left: 31px; gap: 2px; margin-top: 2px; }
-            .tick-style-btn { padding: 2px 5px; font-size: 0.45rem; }
-            .reminder-settings { padding-left: 31px; margin-top: 2px; }
-            .reminder-select { font-size: 0.5rem; padding: 2px 5px; }
-            .activity-section { display: none; }
-        }
-
-        @media (max-width: 380px) {
-            .timer-digits { font-size: 10vw; }
+            /* Hide non-essential on mobile */
             .series-selector { display: none; }
             .toggle-panels { display: none; }
+            .activity-section { display: none; }
+            /* Mode tabs - compact */
+            .mode-tabs {
+                flex-shrink: 0;
+                margin-bottom: 8px;
+            }
+            .mode-tab { padding: 8px 12px; font-size: 0.55rem; }
+            /* Timer - centered and sized to fit */
+            .timer-display {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                min-height: 0;
+            }
+            .timer-digits {
+                font-size: 20vw;
+                line-height: 1;
+                letter-spacing: -2px;
+            }
+            .timer-label {
+                font-size: 0.6rem;
+                margin-top: 8px;
+            }
+            .timer-progress {
+                width: 80%;
+                margin-top: 12px;
+            }
+            /* Buttons - fixed at bottom, always visible */
+            .controls {
+                flex-shrink: 0;
+                gap: 12px;
+                padding: 12px 0;
+                margin: 0;
+            }
+            .btn {
+                padding: 14px 28px;
+                font-size: 0.75rem;
+                min-height: 48px;
+                touch-action: manipulation;
+            }
         }
     </style>
 </head>
