@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -580,6 +581,266 @@
 
         .log-time { color: #999; }
 
+        /* Auth UI */
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 30px;
+        }
+
+        .auth-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: 6px;
+        }
+
+        .auth-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: -20px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .auth-input {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            padding: 14px 18px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 3px;
+            background: #fff;
+            color: #1a1a1a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus {
+            border-color: #1a1a1a;
+        }
+
+        .auth-input::placeholder {
+            color: #999;
+        }
+
+        .auth-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 14px 25px;
+            border: 1px solid #1a1a1a;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            cursor: pointer;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.15s ease;
+        }
+
+        .auth-btn:hover {
+            background: #2a2a2a;
+        }
+
+        .auth-btn.secondary {
+            background: transparent;
+            color: #1a1a1a;
+        }
+
+        .auth-btn.secondary:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .auth-toggle {
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+        }
+
+        .auth-toggle a {
+            color: #1a1a1a;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .auth-error {
+            font-size: 0.75rem;
+            color: #c00;
+            text-align: center;
+            padding: 10px;
+            background: rgba(200,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #999;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-email {
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .logout-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            padding: 6px 12px;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.15s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: #1a1a1a;
+        }
+
+        .sync-indicator {
+            font-size: 0.6rem;
+            color: #999;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sync-indicator.syncing {
+            color: #666;
+        }
+
+        .sync-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4a4;
+        }
+
+        .sync-dot.syncing {
+            background: #888;
+            animation: pulse 1s infinite;
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            font-size: 0.65rem;
+            border-radius: 3px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Compact mode for single screen */
+        .eink-screen.compact {
+            padding: 25px 40px;
+        }
+
+        .compact .header {
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+
+        .compact .main-content {
+            padding: 10px 0;
+        }
+
+        .compact .series-selector {
+            margin-bottom: 15px;
+            padding: 8px 15px;
+        }
+
+        .compact .mode-tabs {
+            margin-bottom: 15px;
+        }
+
+        .compact .timer-display {
+            margin: 10px 0;
+        }
+
+        .compact .timer-digits {
+            font-size: 12rem;
+        }
+
+        .compact .timer-progress {
+            margin-top: 15px;
+        }
+
+        .compact .controls {
+            margin: 15px 0;
+        }
+
+        .compact .toggle-panels {
+            margin: 10px 0;
+            padding: 12px 20px;
+            gap: 30px;
+        }
+
+        .compact .toggle-group {
+            gap: 8px;
+        }
+
+        .compact .activity-section {
+            padding-top: 12px;
+        }
+
+        .compact .today-log {
+            max-height: 60px;
+        }
+
         /* Responsive */
         @media (max-width: 1200px) {
             .timer-digits { font-size: 12rem; }
@@ -608,6 +869,14 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
+
+        // Supabase Configuration
+        // Replace these with your actual Supabase credentials
+        const SUPABASE_URL = 'https://your-project.supabase.co';
+        const SUPABASE_ANON_KEY = 'your-anon-key';
+
+        // Initialize Supabase client
+        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
         // Audio context for generating beeps
         const createAudioContext = () => {
@@ -659,7 +928,7 @@
             oscillator.stop(audioCtx.currentTime + 0.025);
         };
 
-        function ActiveTomato() {
+        function ActiveTomato({ user, onLogout }) {
             const [mode, setMode] = useState('work');
             const [timeLeft, setTimeLeft] = useState(25 * 60);
             const [isRunning, setIsRunning] = useState(false);
@@ -986,20 +1255,25 @@
                 <div className="container">
                     {notification && <div className="notification">{notification}</div>}
 
-                    <div className="eink-screen">
+                    <div className="eink-screen compact">
                         <div className="screen-content">
                             {/* Header */}
                             <div className="header">
                                 <div className="header-left">
                                     <h1>ACTIVETOMATO</h1>
-                                    <div className="subtitle">High-Definition Pomodoro Timer</div>
+                                    <div className="subtitle">
+                                        {user ? (user.email || 'Signed In') : 'Guest Mode'}
+                                        {user && onLogout && (
+                                            <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="header-right">
-                                    <div className="stat-box">
+                                    <div className="stat-box tooltip" data-tooltip="Total points earned from completed pomodoros">
                                         <div className="stat-label">Points</div>
                                         <div className="stat-value">{totalPoints}</div>
                                     </div>
-                                    <div className="stat-box">
+                                    <div className="stat-box tooltip" data-tooltip="Pomodoros completed today">
                                         <div className="stat-label">Today</div>
                                         <div className="stat-value">{todayPomodoros.count}</div>
                                     </div>
@@ -1013,8 +1287,8 @@
                             {/* Main Content */}
                             <div className="main-content">
                                 {/* Series Selector */}
-                                <div className="series-selector">
-                                    <span className="series-label">Session Series</span>
+                                <div className="series-selector tooltip" data-tooltip="Plan multiple pomodoros in a row with automatic breaks">
+                                    <span className="series-label">Batch</span>
                                     <div className="series-buttons">
                                         {[1, 2, 3, 4, 5, 6].map(n => (
                                             <button
@@ -1065,26 +1339,26 @@
                                 {/* Toggle Panels */}
                                 <div className="toggle-panels">
                                     <div className="toggle-group">
-                                        <div className="toggle-group-label">Sounds</div>
-                                        <div className="toggle-item" onClick={() => { initAudio(); setSoundEnabled(!soundEnabled); }}>
+                                        <div className="toggle-group-label">Audio Cues</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); setSoundEnabled(!soundEnabled); }}>
                                             <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
-                                            <label>End Alert</label>
+                                            <label>Completion Sound</label>
                                         </div>
-                                        <div className="toggle-item" onClick={() => { initAudio(); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Beep every 5 minutes: 1 beep at 5min, 2 at 10min, etc." onClick={() => { initAudio(); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
                                             <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
-                                            <label>5-Min Beeps</label>
+                                            <label>Progress Beeps</label>
                                         </div>
-                                        <div className="toggle-item" onClick={() => { initAudio(); setTickSoundEnabled(!tickSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); setTickSoundEnabled(!tickSoundEnabled); }}>
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
-                                            <label>Tick Sound</label>
+                                            <label>Countdown Tick</label>
                                         </div>
                                     </div>
 
                                     <div className="toggle-group">
-                                        <div className="toggle-group-label">Reminders</div>
-                                        <div className="toggle-item" onClick={() => { initAudio(); setReminderEnabled(!reminderEnabled); }}>
+                                        <div className="toggle-group-label">Nudge Me</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); setReminderEnabled(!reminderEnabled); }}>
                                             <div className={`toggle-switch ${reminderEnabled ? 'on' : ''}`} />
-                                            <label>Ping Reminder</label>
+                                            <label>Remind to Focus</label>
                                         </div>
                                         {reminderEnabled && (
                                             <div className="reminder-settings">
@@ -1102,17 +1376,17 @@
                                                 </select>
                                             </div>
                                         )}
-                                        <div className="toggle-item" onClick={() => setAutoStartEnabled(!autoStartEnabled)}>
+                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => setAutoStartEnabled(!autoStartEnabled)}>
                                             <div className={`toggle-switch ${autoStartEnabled ? 'on' : ''}`} />
-                                            <label>Auto-Start on Ping</label>
+                                            <label>Auto-Start</label>
                                         </div>
                                     </div>
 
                                     <div className="toggle-group">
-                                        <div className="toggle-group-label">Series Mode</div>
-                                        <div className="toggle-item" onClick={() => setAutoSeriesEnabled(!autoSeriesEnabled)}>
+                                        <div className="toggle-group-label">Batch Mode</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => setAutoSeriesEnabled(!autoSeriesEnabled)}>
                                             <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
-                                            <label>Auto-Continue Series</label>
+                                            <label>Chain Sessions</label>
                                         </div>
                                     </div>
                                 </div>
@@ -1160,7 +1434,155 @@
             );
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<ActiveTomato />);
+        // Auth Component
+        function AuthScreen({ onAuth }) {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!supabase) {
+                    // Demo mode - skip auth
+                    onAuth({ email: 'demo@example.com', id: 'demo' });
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                try {
+                    if (isLogin) {
+                        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                        if (error) throw error;
+                        onAuth(data.user);
+                    } else {
+                        const { data, error } = await supabase.auth.signUp({ email, password });
+                        if (error) throw error;
+                        if (data.user) {
+                            onAuth(data.user);
+                        }
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleGuestMode = () => {
+                onAuth(null); // null = guest mode
+            };
+
+            return (
+                <div className="auth-container">
+                    <h1 className="auth-title">ACTIVETOMATO</h1>
+                    <p className="auth-subtitle">High-Definition Pomodoro Timer</p>
+
+                    <form className="auth-form" onSubmit={handleSubmit}>
+                        <input
+                            type="email"
+                            className="auth-input"
+                            placeholder="Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="password"
+                            className="auth-input"
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                        {error && <div className="auth-error">{error}</div>}
+                        <button type="submit" className="auth-btn" disabled={loading}>
+                            {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
+                        </button>
+                    </form>
+
+                    <p className="auth-toggle">
+                        {isLogin ? "Don't have an account? " : "Already have an account? "}
+                        <a onClick={() => setIsLogin(!isLogin)}>
+                            {isLogin ? 'Sign Up' : 'Sign In'}
+                        </a>
+                    </p>
+
+                    <div className="auth-divider">or</div>
+
+                    <button className="auth-btn secondary" onClick={handleGuestMode}>
+                        Continue as Guest
+                    </button>
+                </div>
+            );
+        }
+
+        // Main App with Auth wrapper
+        function App() {
+            const [user, setUser] = useState(undefined); // undefined = loading, null = guest, object = logged in
+            const [authChecked, setAuthChecked] = useState(false);
+
+            useEffect(() => {
+                if (!supabase) {
+                    // No Supabase configured - show auth screen
+                    setAuthChecked(true);
+                    return;
+                }
+
+                // Check for existing session
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setUser(session?.user ?? undefined);
+                    setAuthChecked(true);
+                });
+
+                // Listen for auth changes
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setUser(session?.user ?? undefined);
+                });
+
+                return () => subscription.unsubscribe();
+            }, []);
+
+            const handleLogout = async () => {
+                if (supabase) {
+                    await supabase.auth.signOut();
+                }
+                setUser(undefined);
+            };
+
+            // Still checking auth
+            if (!authChecked) {
+                return (
+                    <div className="container">
+                        <div className="eink-screen">
+                            <div className="auth-container">
+                                <h1 className="auth-title">ACTIVETOMATO</h1>
+                                <p className="auth-subtitle">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Not logged in - show auth screen
+            if (user === undefined) {
+                return (
+                    <div className="container">
+                        <div className="eink-screen">
+                            <AuthScreen onAuth={setUser} />
+                        </div>
+                    </div>
+                );
+            }
+
+            // Logged in or guest mode - show main app
+            return <ActiveTomato user={user} onLogout={handleLogout} />;
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>

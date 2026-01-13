@@ -1,73 +1,96 @@
 # ActiveTomato
 
-A retro e-ink styled Pomodoro timer with gamification and activity tracking.
+A high-definition e-ink styled Pomodoro timer with batch sessions, smart reminders, and gamification.
 
 ## Features
 
-### Timer
+### Timer Modes
 - **25-minute focus sessions** (Pomodoro)
 - **5-minute short breaks**
 - **15-minute long breaks** (after 4 pomodoros)
 - Visual progress bar
-- Session dots showing progress toward long break
+- Batch mode: plan 1-6 pomodoros in sequence
 
-### Sound System
-Three toggleable sound modes:
-
+### Audio Cues
 | Toggle | Function |
 |--------|----------|
-| **End Alert** | Plays completion melody when timer ends, warning beeps in last 30 seconds |
-| **5m Beeps** | Interval beeps every 5 minutes (1 beep at 5min, 2 at 10min, 3 at 15min, etc.) |
-| **Tick** | Audible tick sound every second |
+| **Completion Sound** | Melody when timer ends + warning beeps in last 30 sec |
+| **Progress Beeps** | Beeps every 5 min (1 beep at 5min, 2 at 10min, etc.) |
+| **Countdown Tick** | Audible tick on every second |
 
-All sounds are generated using the Web Audio API - no external files needed.
+### Nudge Me (Reminders)
+| Toggle | Function |
+|--------|----------|
+| **Remind to Focus** | Ping when timer is idle (5/10/15/30/60 min intervals) |
+| **Auto-Start** | Automatically start timer when reminder fires |
+
+### Batch Mode
+| Toggle | Function |
+|--------|----------|
+| **Chain Sessions** | Auto-start next pomodoro after break in a series |
 
 ### Gamification
-- **Points**: Earn 25 points per completed pomodoro
-- **Levels**: Progress through ranks as you accumulate points
-  - Seedling (0-99 pts)
-  - Sprout (100-299 pts)
-  - Sapling (300-599 pts)
-  - Tree (600-999 pts)
-  - Grove (1000-1999 pts)
-  - Forest (2000+ pts)
-- **Today Counter**: Track daily pomodoro completions
-
-### Activity Tracking
-- **GitHub-style contribution grid** showing the last 52 weeks
-- **Daily log** of timer sessions with timestamps
-- All data persisted in localStorage
+- **Points**: 25 pts per completed pomodoro
+- **Levels**: Seedling → Sprout → Sapling → Tree → Grove → Forest
+- **Activity Grid**: GitHub-style yearly contribution tracker
+- **Daily Log**: Session timestamps
 
 ## Tech Stack
-- HTML5
-- React 18 (via CDN)
-- CSS3 with responsive design
-- Web Audio API for sounds
-- localStorage for persistence
+- React 18 (CDN)
+- Supabase (Auth + Database)
+- Web Audio API (sounds)
+- CSS3 (responsive e-ink design)
 
-## Usage
+## Setup
 
-Simply open `index.html` in a web browser. No build process required.
-
+### Quick Start (Guest Mode)
 ```bash
 open index.html
 ```
+Works immediately with localStorage - no backend needed.
 
-Or serve locally:
+### With Supabase (Cloud Sync)
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+
+2. Run the schema in your SQL editor:
 ```bash
-npx serve .
+# Copy contents of supabase/schema.sql to Supabase SQL Editor
 ```
 
-## Mobile Support
-Fully responsive design works on all screen sizes from desktop to mobile.
+3. Update credentials in `index.html`:
+```javascript
+const SUPABASE_URL = 'https://your-project.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key';
+```
 
-## Data Storage
-All data is stored in localStorage under these keys:
-- `activeTomatoPoints` - Total points
-- `activeTomatoToday` - Today's pomodoro count
-- `activeTomatoActivity` - Activity grid data
-- `activeTomatoLog` - Today's session log
-- `activeTomatoStreak` - Current streak
+4. Enable Email Auth in Supabase Dashboard:
+   - Authentication → Providers → Email
+
+## Deploy to Netlify
+
+1. Push to GitHub (already done)
+2. Connect repo to Netlify
+3. Deploy settings:
+   - Build command: (leave empty)
+   - Publish directory: `.`
+
+## Environment Variables
+
+For production, set these in Netlify:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+## Database Schema
+
+See `supabase/schema.sql` for complete schema including:
+- User profiles
+- Settings/preferences
+- Pomodoro sessions
+- Daily activity
+- Activity log
+
+All tables have Row Level Security (RLS) enabled.
 
 ## License
 MIT
