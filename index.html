@@ -800,32 +800,6 @@
             padding: 3px 8px;
             background: rgba(0,0,0,0.04);
             border-radius: 3px;
-            cursor: help;
-            position: relative;
-        }
-
-        .sync-indicator:hover {
-            background: rgba(0,0,0,0.08);
-        }
-
-        .sync-indicator .sync-tooltip {
-            display: none;
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a1a;
-            color: #f5f5f0;
-            padding: 8px 12px;
-            border-radius: 3px;
-            font-size: 0.65rem;
-            white-space: nowrap;
-            margin-bottom: 5px;
-            z-index: 1000;
-        }
-
-        .sync-indicator:hover .sync-tooltip {
-            display: block;
         }
 
         .sync-indicator .sync-icon {
@@ -2096,32 +2070,9 @@
                                         {onLogout && (
                                             <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
                                         )}
-                                        <span className={`sync-indicator ${syncStatus}`} onClick={() => {
-                                            // Manual refresh on click
-                                            if (user?.id) {
-                                                loadTimerState(user.id).then(state => {
-                                                    if (state) {
-                                                        syncingFromRemoteRef.current = true;
-                                                        setMode(state.mode);
-                                                        setTimeLeft(state.timeLeft);
-                                                        setIsRunning(state.isRunning);
-                                                        setSeriesTarget(state.seriesTarget);
-                                                        setSeriesProgress(state.seriesProgress);
-                                                        setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
-                                                        console.log('Manual sync completed');
-                                                    }
-                                                });
-                                            }
-                                        }}>
+                                        <span className={`sync-indicator ${syncStatus}`}>
                                             <span className="sync-icon">{syncStatus === 'connected' ? '⟳' : syncStatus === 'error' ? '✕' : '◌'}</span>
-                                            {syncStatus === 'connected' ? 'Synced' : syncStatus === 'error' ? 'Offline' : 'Connecting...'}
-                                            <span className="sync-tooltip">
-                                                {syncStatus === 'connected'
-                                                    ? 'Timer syncs across all your devices. Tap to refresh.'
-                                                    : syncStatus === 'error'
-                                                    ? 'Sync disconnected. Tap to retry. Check if Realtime is enabled in Supabase.'
-                                                    : 'Connecting to sync service...'}
-                                            </span>
+                                            {syncStatus === 'connected' ? 'Synced' : syncStatus === 'error' ? 'Offline' : '...'}
                                         </span>
                                     </div>
                                 </div>
