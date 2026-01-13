@@ -920,7 +920,9 @@
                 border-radius: 0;
                 box-shadow: none;
             }
-            .screen-content { overflow: hidden; }
+            .screen-content { overflow: visible; }
+            .controls { position: relative; z-index: 10; gap: 8px; margin: 6px 0; }
+            .btn { min-height: 44px; touch-action: manipulation; }
             .header {
                 padding-bottom: 6px;
                 margin-bottom: 6px;
@@ -950,7 +952,6 @@
             .timer-digits { font-size: 12vw; letter-spacing: -2px; line-height: 1; }
             .timer-label { font-size: 0.5rem; margin-bottom: 4px; }
             .timer-progress { margin-top: 6px; }
-            .controls { gap: 8px; margin: 6px 0; }
             .btn { padding: 10px 20px; font-size: 0.65rem; }
             .toggle-panels {
                 gap: 6px;
