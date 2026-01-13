@@ -1709,6 +1709,10 @@
                 if (!audioCtxRef.current) {
                     audioCtxRef.current = createAudioContext();
                 }
+                // Mobile browsers suspend AudioContext - must resume on user gesture
+                if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+                    audioCtxRef.current.resume();
+                }
             };
 
             const getLevel = () => {
