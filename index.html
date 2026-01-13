@@ -1496,8 +1496,12 @@
                     series_target: state.seriesTarget,
                     series_progress: state.seriesProgress,
                     updated_at: new Date().toISOString()
-                });
-                if (error) console.error('Error saving timer state:', error);
+                }, { onConflict: 'user_id' });
+                if (error) {
+                    console.error('Error saving timer state:', error);
+                } else {
+                    console.log('Timer state saved:', state.isRunning ? 'running' : 'paused', state.timeLeft + 's');
+                }
             } catch (err) {
                 console.error('Error saving timer state:', err);
             }
@@ -1599,31 +1603,39 @@
 
                     // Subscribe to realtime timer updates
                     if (supabase) {
+                        const handleTimerUpdate = (payload) => {
+                            const data = payload.new;
+                            if (!data) return;
+
+                            // Calculate current time if running
+                            let newTimeLeft = data.time_left;
+                            if (data.is_running && data.started_at) {
+                                const elapsed = Math.floor((Date.now() - new Date(data.started_at).getTime()) / 1000);
+                                newTimeLeft = Math.max(0, data.time_left - elapsed);
+                            }
+
+                            // Update local state
+                            syncingFromRemoteRef.current = true;
+                            setMode(data.mode);
+                            setTimeLeft(newTimeLeft);
+                            setIsRunning(data.is_running && newTimeLeft > 0);
+                            setSeriesTarget(data.series_target);
+                            setSeriesProgress(data.series_progress);
+                            console.log('Timer synced from remote:', data.is_running ? 'running' : 'paused');
+                            setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                        };
+
                         const channel = supabase
                             .channel('timer-sync')
                             .on('postgres_changes', {
-                                event: 'UPDATE',
+                                event: '*',
                                 schema: 'public',
                                 table: 'timer_state',
                                 filter: `user_id=eq.${user.id}`
-                            }, (payload) => {
-                                const data = payload.new;
-                                // Calculate current time if running
-                                let timeLeft = data.time_left;
-                                if (data.is_running && data.started_at) {
-                                    const elapsed = Math.floor((Date.now() - new Date(data.started_at).getTime()) / 1000);
-                                    timeLeft = Math.max(0, data.time_left - elapsed);
-                                }
-                                // Update local state
-                                syncingFromRemoteRef.current = true;
-                                setMode(data.mode);
-                                setTimeLeft(timeLeft);
-                                setIsRunning(data.is_running && timeLeft > 0);
-                                setSeriesTarget(data.series_target);
-                                setSeriesProgress(data.series_progress);
-                                setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
-                            })
-                            .subscribe();
+                            }, handleTimerUpdate)
+                            .subscribe((status) => {
+                                console.log('Realtime subscription status:', status);
+                            });
 
                         realtimeChannelRef.current = channel;
                     }
