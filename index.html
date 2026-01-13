@@ -1019,23 +1019,26 @@
             .reminder-select { font-size: 0.65rem; padding: 4px 8px; }
             .activity-section { padding-top: 15px; }
             .activity-header { margin-bottom: 8px; }
-            .activity-title { font-size: 0.6rem; }
+            .activity-title { font-size: 0.65rem; }
             .activity-stats { font-size: 0.6rem; }
             .activity-grid {
                 gap: 2px;
-                overflow-x: auto;
-                padding-bottom: 5px;
+                grid-template-columns: repeat(16, 1fr);
+            }
+            /* Hide all but last 16 weeks on mobile */
+            .activity-week:nth-child(-n+36) {
+                display: none;
             }
             .activity-week {
-                min-width: 8px;
+                min-width: 10px;
             }
             .activity-day {
-                border-radius: 0;
-                min-width: 8px;
-                min-height: 8px;
+                border-radius: 1px;
+                min-width: 10px;
+                min-height: 10px;
             }
             .activity-legend { font-size: 0.5rem; gap: 2px; }
-            .legend-box { width: 8px; height: 8px; }
+            .legend-box { width: 10px; height: 10px; }
             .today-log { padding: 10px; max-height: 80px; }
             .today-log-title { font-size: 0.55rem; }
             .log-entry { font-size: 0.6rem; }
@@ -1055,8 +1058,10 @@
             }
             .compact .activity-section { padding-top: 15px; }
             .compact .activity-grid {
-                overflow-x: auto;
-                padding-bottom: 5px;
+                grid-template-columns: repeat(16, 1fr);
+            }
+            .compact .activity-week:nth-child(-n+36) {
+                display: none;
             }
             .compact .today-log { max-height: 80px; }
         }
@@ -1616,8 +1621,12 @@
                     // Subscribe to realtime timer updates
                     if (supabase) {
                         const handleTimerUpdate = (payload) => {
+                            console.log('Realtime event received:', payload.eventType, payload);
                             const data = payload.new;
-                            if (!data) return;
+                            if (!data) {
+                                console.log('No data in payload');
+                                return;
+                            }
 
                             // Calculate current time if running
                             let newTimeLeft = data.time_left;
@@ -1633,14 +1642,20 @@
                             setIsRunning(data.is_running && newTimeLeft > 0);
                             setSeriesTarget(data.series_target);
                             setSeriesProgress(data.series_progress);
-                            console.log('Timer synced from remote:', data.is_running ? 'running' : 'paused');
+                            console.log('Timer synced from remote:', data.is_running ? 'running' : 'paused', 'timeLeft:', newTimeLeft);
                             setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
                         };
 
                         const channel = supabase
-                            .channel('timer-sync')
+                            .channel('timer-sync-' + user.id)
                             .on('postgres_changes', {
-                                event: '*',
+                                event: 'INSERT',
+                                schema: 'public',
+                                table: 'timer_state',
+                                filter: `user_id=eq.${user.id}`
+                            }, handleTimerUpdate)
+                            .on('postgres_changes', {
+                                event: 'UPDATE',
                                 schema: 'public',
                                 table: 'timer_state',
                                 filter: `user_id=eq.${user.id}`
@@ -1681,6 +1696,7 @@
             const reminderTimerRef = useRef(null);
             const realtimeChannelRef = useRef(null);
             const syncingFromRemoteRef = useRef(false);
+            const prevIsRunningRef = useRef(false);
 
             const durations = { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 };
             const modeLabels = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
@@ -1808,9 +1824,18 @@
                 return () => clearTimeout(timeoutId);
             }, [user?.id, dataLoaded, isRunning, mode, seriesTarget, seriesProgress]);
 
-            // Also save immediately on start/stop
+            // Save immediately on start/stop (only trigger on isRunning change)
             useEffect(() => {
-                if (!user?.id || !dataLoaded || syncingFromRemoteRef.current) return;
+                if (!user?.id || !dataLoaded) return;
+                // Only save when isRunning actually changes
+                if (prevIsRunningRef.current === isRunning) return;
+                prevIsRunningRef.current = isRunning;
+
+                if (syncingFromRemoteRef.current) {
+                    console.log('Skipping save - syncing from remote');
+                    return;
+                }
+                console.log('Saving timer state on start/stop:', isRunning ? 'STARTED' : 'STOPPED', 'timeLeft:', timeLeft);
                 saveTimerState(user.id, {
                     isRunning,
                     mode,
@@ -1818,7 +1843,7 @@
                     seriesTarget,
                     seriesProgress
                 });
-            }, [isRunning]);
+            });
 
             // Reminder effect
             useEffect(() => {
