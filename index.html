@@ -510,12 +510,25 @@
             aspect-ratio: 1;
             background: rgba(0,0,0,0.04);
             border-radius: 1px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .activity-day:hover {
+            transform: scale(1.8);
+            z-index: 10;
+            position: relative;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
         }
 
         .activity-day.level-1 { background: rgba(0,0,0,0.12); }
         .activity-day.level-2 { background: rgba(0,0,0,0.25); }
         .activity-day.level-3 { background: rgba(0,0,0,0.45); }
         .activity-day.level-4 { background: #1a1a1a; }
+
+        .activity-day.today {
+            box-shadow: 0 0 0 2px #1a1a1a;
+        }
 
         .activity-legend {
             display: flex;
@@ -922,12 +935,12 @@
             const gainNode = audioCtx.createGain();
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = 1400;
-            oscillator.type = 'square';
-            gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.025);
+            oscillator.frequency.value = 180;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.012, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.015);
             oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 0.025);
+            oscillator.stop(audioCtx.currentTime + 0.015);
         };
 
         function ActiveTomato({ user, onLogout }) {
@@ -970,6 +983,7 @@
             const [autoSeriesEnabled, setAutoSeriesEnabled] = useState(false);
 
             const [notification, setNotification] = useState(null);
+            const [hoveredDay, setHoveredDay] = useState(null);
 
             const audioCtxRef = useRef(null);
             const lastIntervalRef = useRef(0);
@@ -1231,6 +1245,7 @@
             const totalPomodoros = Object.values(activityData).reduce((a, b) => a + b, 0);
             const levelInfo = getLevel();
             const elapsedMinutes = Math.floor((durations[mode] - timeLeft) / 60);
+            const todayStr = new Date().toISOString().split('T')[0];
 
             // Generate series dots
             const renderSeriesDots = () => {
@@ -1398,13 +1413,22 @@
                             <div className="activity-section">
                                 <div className="activity-header">
                                     <span className="activity-title">Activity</span>
-                                    <span className="activity-stats">{totalPomodoros} pomodoros this year</span>
+                                    <span className="activity-stats">
+                                        {hoveredDay
+                                            ? `${hoveredDay.date}: ${hoveredDay.count} pomodoro${hoveredDay.count !== 1 ? 's' : ''}`
+                                            : `${totalPomodoros} pomodoros this year`
+                                        }
+                                    </span>
                                 </div>
-                                <div className="activity-grid">
+                                <div className="activity-grid" onMouseLeave={() => setHoveredDay(null)}>
                                     {activityGrid.map((week, wi) => (
                                         <div key={wi} className="activity-week">
                                             {week.map((day, di) => (
-                                                <div key={di} className={`activity-day level-${day.level}`} title={`${day.date}: ${day.count} pomodoros`} />
+                                                <div
+                                                    key={di}
+                                                    className={`activity-day level-${day.level} ${day.date === todayStr ? 'today' : ''}`}
+                                                    onMouseEnter={() => setHoveredDay(day)}
+                                                />
                                             ))}
                                         </div>
                                     ))}
@@ -1585,17 +1609,6 @@
                     <h1 className="auth-title">ACTIVETOMATO</h1>
                     <p className="auth-subtitle">High-Definition Pomodoro Timer</p>
 
-                    {passkeySupported && (
-                        <button
-                            className="auth-btn"
-                            onClick={handlePasskeyAuth}
-                            disabled={loading}
-                            style={{width: '100%', maxWidth: '350px', marginBottom: '20px'}}
-                        >
-                            {loading ? 'Authenticating...' : 'Continue with Passkey'}
-                        </button>
-                    )}
-
                     {isSupabaseConfigured && (
                         <form className="auth-form" onSubmit={handleContinue}>
                             <input
@@ -1617,12 +1630,20 @@
                             />
                             {error && <div className="auth-error">{error}</div>}
                             <button type="submit" className="auth-btn" disabled={loading}>
-                                {loading ? 'Please wait...' : 'Continue with Email'}
+                                {loading ? 'Please wait...' : 'Continue'}
                             </button>
-                            <p style={{fontSize: '0.65rem', color: '#999', textAlign: 'center', marginTop: '8px'}}>
-                                New users are automatically registered
-                            </p>
                         </form>
+                    )}
+
+                    {passkeySupported && (
+                        <p style={{fontSize: '0.7rem', color: '#888', textAlign: 'center', marginTop: '15px'}}>
+                            or <a
+                                onClick={handlePasskeyAuth}
+                                style={{color: '#555', cursor: 'pointer', textDecoration: 'underline'}}
+                            >
+                                use passkey
+                            </a>
+                        </p>
                     )}
 
                     {!isSupabaseConfigured && (
