@@ -21,13 +21,11 @@
             box-sizing: border-box;
         }
 
-        /* BASE: Mobile - fixed viewport, no scroll */
+        /* BASE: Mobile - scrollable */
         html, body {
             height: 100%;
-            height: 100dvh;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -37,19 +35,17 @@
 
         .container {
             width: 100%;
-            height: 100dvh;
+            min-height: 100%;
             display: flex;
-            overflow: hidden;
         }
 
         .eink-screen {
             background: #f5f5f0;
             width: 100%;
-            height: 100%;
-            padding: 8px 10px;
+            min-height: 100%;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         .eink-screen::before {
@@ -60,8 +56,6 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
         }
 
         /* HEADER - compact on mobile */
@@ -256,31 +250,30 @@
             background: rgba(0,0,0,0.04);
         }
 
-        /* TIMER - readable on mobile */
+        /* TIMER - good size on mobile */
         .timer-display {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding: 10px 0;
-            flex-shrink: 0;
+            padding: 20px 0;
         }
 
         .timer-label {
-            font-size: 0.5rem;
+            font-size: 0.6rem;
             color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 3.5rem;
+            font-size: 5rem;
             font-weight: 700;
             color: #0a0a0a;
-            letter-spacing: -2px;
+            letter-spacing: -3px;
             line-height: 1;
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
