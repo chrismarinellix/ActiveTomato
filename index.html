@@ -256,31 +256,31 @@
             background: rgba(0,0,0,0.04);
         }
 
-        /* TIMER - SMALL on mobile */
+        /* TIMER - readable on mobile */
         .timer-display {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            padding: 8px 0;
+            padding: 10px 0;
             flex-shrink: 0;
         }
 
         .timer-label {
-            font-size: 0.45rem;
+            font-size: 0.5rem;
             color: #888;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 2.5rem;
+            font-size: 3.5rem;
             font-weight: 700;
             color: #0a0a0a;
-            letter-spacing: -1px;
+            letter-spacing: -2px;
             line-height: 1;
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
@@ -363,12 +363,13 @@
             background: #2a2a2a;
         }
 
-        /* TOGGLE PANELS - grid on mobile */
+        /* TOGGLE PANELS - simple flex on mobile */
         .toggle-panels {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            padding: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px;
             background: rgba(0,0,0,0.02);
             border-radius: 3px;
             flex-shrink: 0;
@@ -386,24 +387,26 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
+            gap: 2px;
             cursor: pointer;
-            padding: 6px 4px;
-            border-radius: 4px;
-            background: rgba(0,0,0,0.02);
+            padding: 4px 6px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.03);
+            min-width: 50px;
         }
 
         .toggle-item:active {
-            background: rgba(0,0,0,0.08);
+            background: rgba(0,0,0,0.1);
         }
 
         .toggle-item label {
-            font-size: 0.35rem;
+            font-size: 0.32rem;
             color: #555;
             cursor: pointer;
-            letter-spacing: 0.2px;
+            letter-spacing: 0.1px;
             text-align: center;
-            line-height: 1.2;
+            line-height: 1.1;
+            max-width: 45px;
         }
 
         /* TOGGLE SWITCH - tappable on mobile */
@@ -501,82 +504,86 @@
             display: none;
         }
 
-        /* Activity Section */
-        /* BASE: Hide activity section on mobile */
+        /* Activity Section - compact on mobile */
         .activity-section {
-            display: none;
+            display: block;
+            padding-top: 6px;
+            margin-top: 6px;
+            border-top: 1px solid rgba(0,0,0,0.08);
+            flex-shrink: 0;
         }
 
         .activity-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 4px;
         }
 
         .activity-title {
-            font-size: 0.7rem;
+            font-size: 0.4rem;
             color: #888;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .activity-stats {
-            font-size: 0.7rem;
+            font-size: 0.4rem;
             color: #888;
         }
 
         .activity-grid {
             display: grid;
             grid-template-columns: repeat(52, 1fr);
-            gap: 3px;
-            margin-bottom: 10px;
+            gap: 1px;
+            margin-bottom: 4px;
         }
 
         .activity-week {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 1px;
         }
 
         .activity-day {
             width: 100%;
             aspect-ratio: 1;
-            background: rgba(0,0,0,0.04);
-            border-radius: 1px;
+            background: rgba(0,0,0,0.06);
+            border-radius: 0;
             cursor: pointer;
-            transition: transform 0.1s ease;
+            transition: none;
         }
 
         .activity-day:hover {
-            transform: scale(1.8);
-            z-index: 10;
-            position: relative;
-            box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+            transform: none;
+            z-index: auto;
+            position: static;
+            box-shadow: none;
         }
 
-        .activity-day.level-1 { background: rgba(0,0,0,0.12); }
-        .activity-day.level-2 { background: rgba(0,0,0,0.25); }
-        .activity-day.level-3 { background: rgba(0,0,0,0.45); }
+        .activity-day.level-1 { background: rgba(0,0,0,0.15); }
+        .activity-day.level-2 { background: rgba(0,0,0,0.30); }
+        .activity-day.level-3 { background: rgba(0,0,0,0.50); }
         .activity-day.level-4 { background: #1a1a1a; }
 
+        /* Today marker - darker shaded box, no outline */
         .activity-day.today {
-            box-shadow: 0 0 0 2px #1a1a1a;
+            background: rgba(0,0,0,0.25);
+            box-shadow: none;
         }
+        .activity-day.today.level-1 { background: rgba(0,0,0,0.20); }
+        .activity-day.today.level-2 { background: rgba(0,0,0,0.35); }
+        .activity-day.today.level-3 { background: rgba(0,0,0,0.55); }
+        .activity-day.today.level-4 { background: #000; }
 
         .activity-legend {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.6rem;
-            color: #999;
+            display: none;
         }
 
         .legend-box {
-            width: 10px;
-            height: 10px;
-            border-radius: 1px;
+            width: 8px;
+            height: 8px;
+            border-radius: 0;
         }
 
         /* Notification */
@@ -1130,12 +1137,64 @@
                 padding: 4px 10px;
             }
 
-            /* Show activity section on desktop */
+            /* Activity section - full on desktop */
             .activity-section {
                 display: block;
                 margin-top: auto;
                 padding-top: 20px;
                 border-top: 1px solid rgba(0,0,0,0.08);
+            }
+
+            .activity-header {
+                margin-bottom: 12px;
+            }
+
+            .activity-title {
+                font-size: 0.7rem;
+            }
+
+            .activity-stats {
+                font-size: 0.7rem;
+            }
+
+            .activity-grid {
+                gap: 3px;
+                margin-bottom: 10px;
+            }
+
+            .activity-week {
+                gap: 3px;
+            }
+
+            .activity-day {
+                border-radius: 1px;
+                transition: transform 0.1s ease;
+            }
+
+            .activity-day:hover {
+                transform: scale(1.8);
+                z-index: 10;
+                position: relative;
+                box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+            }
+
+            .activity-day.today {
+                box-shadow: 0 0 0 2px #1a1a1a;
+                background: rgba(0,0,0,0.04);
+            }
+            .activity-day.today.level-1 { background: rgba(0,0,0,0.12); }
+            .activity-day.today.level-2 { background: rgba(0,0,0,0.25); }
+            .activity-day.today.level-3 { background: rgba(0,0,0,0.45); }
+            .activity-day.today.level-4 { background: #1a1a1a; }
+
+            .activity-legend {
+                display: flex;
+            }
+
+            .legend-box {
+                width: 10px;
+                height: 10px;
+                border-radius: 1px;
             }
         }
 
