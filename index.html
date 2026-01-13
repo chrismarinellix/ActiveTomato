@@ -1046,9 +1046,82 @@
 
         const playCompletionSound = (audioCtx) => {
             if (!audioCtx) return;
-            [523, 659, 784, 1047].forEach((freq, i) => {
-                setTimeout(() => playBeep(audioCtx, freq, 0.12, 1), i * 120);
+            // Rich completion sequence - 2.5 seconds of satisfying closure
+            const now = audioCtx.currentTime;
+
+            // Triumphant chord swell
+            const chordOsc1 = audioCtx.createOscillator();
+            const chordOsc2 = audioCtx.createOscillator();
+            const chordOsc3 = audioCtx.createOscillator();
+            const chordGain = audioCtx.createGain();
+            chordOsc1.connect(chordGain);
+            chordOsc2.connect(chordGain);
+            chordOsc3.connect(chordGain);
+            chordGain.connect(audioCtx.destination);
+            chordOsc1.frequency.value = 220; // A
+            chordOsc2.frequency.value = 277; // C#
+            chordOsc3.frequency.value = 330; // E
+            chordOsc1.type = 'sine';
+            chordOsc2.type = 'sine';
+            chordOsc3.type = 'sine';
+            chordGain.gain.setValueAtTime(0, now);
+            chordGain.gain.linearRampToValueAtTime(0.08, now + 0.3);
+            chordGain.gain.linearRampToValueAtTime(0.05, now + 1);
+            chordGain.gain.linearRampToValueAtTime(0, now + 1.5);
+            chordOsc1.start(now);
+            chordOsc2.start(now);
+            chordOsc3.start(now);
+            chordOsc1.stop(now + 1.5);
+            chordOsc2.stop(now + 1.5);
+            chordOsc3.stop(now + 1.5);
+
+            // Descending resolution tones
+            [440, 330, 262, 220].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.08);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.35);
+                }, 800 + i * 200);
             });
+
+            // Final soft gong
+            setTimeout(() => {
+                const gongOsc = audioCtx.createOscillator();
+                const gongGain = audioCtx.createGain();
+                gongOsc.connect(gongGain);
+                gongGain.connect(audioCtx.destination);
+                gongOsc.frequency.value = 110;
+                gongOsc.type = 'sine';
+                gongGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gongGain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.1);
+                gongGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+                gongOsc.start(audioCtx.currentTime);
+                gongOsc.stop(audioCtx.currentTime + 0.8);
+            }, 1800);
+        };
+
+        const playWarningBeep = (audioCtx) => {
+            if (!audioCtx) return;
+            // Gentle reminder that time is running out
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 330;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
         };
 
         const playReminderSound = (audioCtx) => {
@@ -1523,7 +1596,7 @@
                             }
 
                             if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
-                                playProgressBeep(audioCtxRef.current, 2);
+                                playWarningBeep(audioCtxRef.current);
                             }
 
                             return newTime;
