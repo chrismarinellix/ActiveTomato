@@ -793,13 +793,43 @@
         .sync-indicator {
             font-size: 0.6rem;
             color: #999;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 5px;
+            margin-left: 10px;
+            padding: 3px 8px;
+            background: rgba(0,0,0,0.04);
+            border-radius: 3px;
+            cursor: help;
+            position: relative;
         }
 
-        .sync-indicator.syncing {
-            color: #666;
+        .sync-indicator:hover {
+            background: rgba(0,0,0,0.08);
+        }
+
+        .sync-indicator .sync-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            color: #f5f5f0;
+            padding: 8px 12px;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            z-index: 1000;
+        }
+
+        .sync-indicator:hover .sync-tooltip {
+            display: block;
+        }
+
+        .sync-indicator .sync-icon {
+            font-size: 0.7rem;
         }
 
         .sync-dot {
@@ -1965,6 +1995,10 @@
                                         {onLogout && (
                                             <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
                                         )}
+                                        <span className="sync-indicator">
+                                            <span className="sync-icon">⟳</span> Synced
+                                            <span className="sync-tooltip">Timer syncs across all your devices in real-time</span>
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="header-right">
