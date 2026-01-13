@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActiveTomato - E-Ink Pomodoro Timer</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background: #0f0f0f;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        /* Modern E-Ink Display - Kindle Paperwhite / Boox style */
+        .eink-screen {
+            background: #f5f5f0;
+            border-radius: 3px;
+            padding: 35px 50px;
+            width: 100%;
+            max-width: 1400px;
+            height: 95vh;
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.08),
+                0 25px 80px rgba(0,0,0,0.5),
+                0 0 0 8px #1a1a1a,
+                0 0 0 10px #0a0a0a;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Subtle paper texture */
+        .eink-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .screen-content {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header-left h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: 4px;
+        }
+
+        .header-left .subtitle {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 25px;
+        }
+
+        .stat-box {
+            text-align: right;
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .level-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            font-size: 0.65rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            border-radius: 2px;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 0;
+        }
+
+        /* Series selector */
+        .series-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 3px;
+        }
+
+        .series-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .series-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .series-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border: 1px solid rgba(0,0,0,0.15);
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.15s ease;
+        }
+
+        .series-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
+        .series-btn:hover:not(.active) {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .series-progress {
+            display: flex;
+            gap: 6px;
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .series-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .series-dot.completed {
+            background: #1a1a1a;
+        }
+
+        .series-dot.current {
+            background: transparent;
+            border: 2px solid #1a1a1a;
+            animation: pulse 1.5s infinite;
+        }
+
+        .series-dot.break {
+            width: 6px;
+            height: 6px;
+            margin: 2px 0;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .series-dot.break.completed {
+            background: #666;
+        }
+
+        /* Mode tabs */
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .mode-tab {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 12px 30px;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.15s ease;
+            border-right: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .mode-tab:last-child {
+            border-right: none;
+        }
+
+        .mode-tab.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+        }
+
+        .mode-tab:hover:not(.active) {
+            background: rgba(0,0,0,0.04);
+        }
+
+        /* Timer Display - High Definition */
+        .timer-display {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timer-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+        }
+
+        .timer-digits {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16rem;
+            font-weight: 700;
+            color: #0a0a0a;
+            letter-spacing: -5px;
+            line-height: 0.85;
+            text-rendering: geometricPrecision;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .timer-digits.warning {
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0.4; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        .timer-progress {
+            width: 100%;
+            max-width: 600px;
+            height: 4px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 2px;
+            margin: 30px auto 0;
+            overflow: hidden;
+        }
+
+        .timer-progress-bar {
+            height: 100%;
+            background: #1a1a1a;
+            transition: width 1s linear;
+        }
+
+        .interval-indicator {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #999;
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 14px 45px;
+            border: 1px solid #1a1a1a;
+            background: transparent;
+            color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .btn.primary {
+            background: #1a1a1a;
+            color: #f5f5f0;
+        }
+
+        .btn.primary:hover {
+            background: #2a2a2a;
+        }
+
+        /* Toggle panels */
+        .toggle-panels {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 20px 0;
+            padding: 20px 30px;
+            background: rgba(0,0,0,0.02);
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toggle-group-label {
+            font-size: 0.6rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .toggle-item label {
+            font-size: 0.7rem;
+            color: #555;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-switch {
+            width: 38px;
+            height: 20px;
+            background: rgba(0,0,0,0.12);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch.on {
+            background: #1a1a1a;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #f5f5f0;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+
+        .toggle-switch.on::after {
+            left: 20px;
+        }
+
+        /* Reminder settings */
+        .reminder-settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            padding-left: 48px;
+        }
+
+        .reminder-select {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 2px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .reminder-label {
+            font-size: 0.65rem;
+            color: #888;
+        }
+
+        /* Activity Section */
+        .activity-section {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .activity-title {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .activity-stats {
+            font-size: 0.7rem;
+            color: #888;
+        }
+
+        .activity-grid {
+            display: grid;
+            grid-template-columns: repeat(52, 1fr);
+            gap: 3px;
+            margin-bottom: 10px;
+        }
+
+        .activity-week {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .activity-day {
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(0,0,0,0.04);
+            border-radius: 1px;
+        }
+
+        .activity-day.level-1 { background: rgba(0,0,0,0.12); }
+        .activity-day.level-2 { background: rgba(0,0,0,0.25); }
+        .activity-day.level-3 { background: rgba(0,0,0,0.45); }
+        .activity-day.level-4 { background: #1a1a1a; }
+
+        .activity-legend {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.6rem;
+            color: #999;
+        }
+
+        .legend-box {
+            width: 10px;
+            height: 10px;
+            border-radius: 1px;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            color: #f5f5f0;
+            padding: 15px 35px;
+            border-radius: 3px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-15px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Today's log */
+        .today-log {
+            margin-top: 15px;
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.02);
+            border-radius: 3px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .today-log-title {
+            font-size: 0.65rem;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .log-entry {
+            font-size: 0.7rem;
+            color: #555;
+            padding: 3px 0;
+        }
+
+        .log-time { color: #999; }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .timer-digits { font-size: 12rem; }
+        }
+
+        @media (max-width: 900px) {
+            .timer-digits { font-size: 9rem; }
+            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .header-right { justify-content: center; }
+            .toggle-panels { flex-wrap: wrap; gap: 25px; }
+            .series-selector { flex-wrap: wrap; justify-content: center; }
+        }
+
+        @media (max-width: 600px) {
+            .eink-screen { padding: 20px 15px; }
+            .timer-digits { font-size: 6rem; letter-spacing: 0; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; }
+            .series-buttons { flex-wrap: wrap; justify-content: center; }
+            .mode-tab { padding: 10px 15px; font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // Audio context for generating beeps
+        const createAudioContext = () => {
+            return new (window.AudioContext || window.webkitAudioContext)();
+        };
+
+        const playBeep = (audioCtx, frequency = 800, duration = 0.1, count = 1) => {
+            if (!audioCtx) return;
+            const playOne = (delay) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'square';
+                gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime + delay);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + duration);
+                oscillator.start(audioCtx.currentTime + delay);
+                oscillator.stop(audioCtx.currentTime + delay + duration);
+            };
+            for (let i = 0; i < count; i++) playOne(i * 0.18);
+        };
+
+        const playCompletionSound = (audioCtx) => {
+            if (!audioCtx) return;
+            [523, 659, 784, 1047].forEach((freq, i) => {
+                setTimeout(() => playBeep(audioCtx, freq, 0.12, 1), i * 120);
+            });
+        };
+
+        const playReminderSound = (audioCtx) => {
+            if (!audioCtx) return;
+            [880, 1100, 880, 1100].forEach((freq, i) => {
+                setTimeout(() => playBeep(audioCtx, freq, 0.08, 1), i * 100);
+            });
+        };
+
+        const playTickSound = (audioCtx) => {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 1400;
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.025);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.025);
+        };
+
+        function ActiveTomato() {
+            const [mode, setMode] = useState('work');
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isRunning, setIsRunning] = useState(false);
+            const [sessionsCompleted, setSessionsCompleted] = useState(0);
+            const [seriesTarget, setSeriesTarget] = useState(1);
+            const [seriesProgress, setSeriesProgress] = useState(0);
+            const [seriesPhase, setSeriesPhase] = useState('work'); // 'work' or 'break'
+
+            const [totalPoints, setTotalPoints] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoPoints');
+                return saved ? parseInt(saved) : 0;
+            });
+            const [todayPomodoros, setTodayPomodoros] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoToday');
+                const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), count: 0 };
+                return data.date !== new Date().toDateString() ? { date: new Date().toDateString(), count: 0 } : data;
+            });
+            const [activityData, setActivityData] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoActivity');
+                return saved ? JSON.parse(saved) : {};
+            });
+            const [todayLog, setTodayLog] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoLog');
+                const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), entries: [] };
+                return data.date !== new Date().toDateString() ? { date: new Date().toDateString(), entries: [] } : data;
+            });
+
+            // Sound toggles
+            const [soundEnabled, setSoundEnabled] = useState(true);
+            const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(true);
+            const [tickSoundEnabled, setTickSoundEnabled] = useState(false);
+
+            // Reminder & Auto-start
+            const [reminderEnabled, setReminderEnabled] = useState(false);
+            const [reminderInterval, setReminderInterval] = useState(30);
+            const [autoStartEnabled, setAutoStartEnabled] = useState(false);
+            const [autoSeriesEnabled, setAutoSeriesEnabled] = useState(false);
+
+            const [notification, setNotification] = useState(null);
+
+            const audioCtxRef = useRef(null);
+            const lastIntervalRef = useRef(0);
+            const reminderTimerRef = useRef(null);
+
+            const durations = { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 };
+            const modeLabels = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
+
+            const initAudio = () => {
+                if (!audioCtxRef.current) {
+                    audioCtxRef.current = createAudioContext();
+                }
+            };
+
+            const getLevel = () => {
+                if (totalPoints < 100) return { level: 1, title: 'Seedling' };
+                if (totalPoints < 300) return { level: 2, title: 'Sprout' };
+                if (totalPoints < 600) return { level: 3, title: 'Sapling' };
+                if (totalPoints < 1000) return { level: 4, title: 'Tree' };
+                if (totalPoints < 2000) return { level: 5, title: 'Grove' };
+                return { level: 6, title: 'Forest' };
+            };
+
+            const showNotification = (message) => {
+                setNotification(message);
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            const addLogEntry = (message) => {
+                const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                setTodayLog(prev => {
+                    const newLog = { ...prev, entries: [...prev.entries, { time, message }].slice(-10) };
+                    localStorage.setItem('activeTomatoLog', JSON.stringify(newLog));
+                    return newLog;
+                });
+            };
+
+            const handleModeChange = (newMode) => {
+                setMode(newMode);
+                setTimeLeft(durations[newMode]);
+                setIsRunning(false);
+                lastIntervalRef.current = 0;
+            };
+
+            const handleSeriesSelect = (target) => {
+                setSeriesTarget(target);
+                setSeriesProgress(0);
+                setSeriesPhase('work');
+                handleModeChange('work');
+            };
+
+            const startTimer = () => {
+                initAudio();
+                if (!isRunning) {
+                    addLogEntry(`Started ${modeLabels[mode]}`);
+                }
+                setIsRunning(true);
+            };
+
+            const toggleTimer = () => {
+                initAudio();
+                if (!isRunning) {
+                    addLogEntry(`Started ${modeLabels[mode]}`);
+                }
+                setIsRunning(!isRunning);
+            };
+
+            const resetTimer = () => {
+                setTimeLeft(durations[mode]);
+                setIsRunning(false);
+                lastIntervalRef.current = 0;
+            };
+
+            // Reminder effect
+            useEffect(() => {
+                if (reminderTimerRef.current) {
+                    clearInterval(reminderTimerRef.current);
+                }
+
+                if (reminderEnabled && !isRunning) {
+                    reminderTimerRef.current = setInterval(() => {
+                        initAudio();
+                        if (audioCtxRef.current) {
+                            playReminderSound(audioCtxRef.current);
+                        }
+                        showNotification('Time to focus! Start your pomodoro.');
+
+                        if (autoStartEnabled) {
+                            setTimeout(() => {
+                                startTimer();
+                            }, 1500);
+                        }
+                    }, reminderInterval * 60 * 1000);
+                }
+
+                return () => {
+                    if (reminderTimerRef.current) {
+                        clearInterval(reminderTimerRef.current);
+                    }
+                };
+            }, [reminderEnabled, reminderInterval, isRunning, autoStartEnabled]);
+
+            const completeSession = useCallback(() => {
+                if (mode === 'work') {
+                    const points = 25;
+                    setTotalPoints(prev => {
+                        const newTotal = prev + points;
+                        localStorage.setItem('activeTomatoPoints', newTotal);
+                        return newTotal;
+                    });
+
+                    setTodayPomodoros(prev => {
+                        const newData = { ...prev, count: prev.count + 1 };
+                        localStorage.setItem('activeTomatoToday', JSON.stringify(newData));
+                        return newData;
+                    });
+
+                    const today = new Date().toISOString().split('T')[0];
+                    setActivityData(prev => {
+                        const newData = { ...prev, [today]: (prev[today] || 0) + 1 };
+                        localStorage.setItem('activeTomatoActivity', JSON.stringify(newData));
+                        return newData;
+                    });
+
+                    const newSessions = sessionsCompleted + 1;
+                    setSessionsCompleted(newSessions);
+
+                    addLogEntry(`Completed pomodoro! +${points} pts`);
+
+                    if (soundEnabled && audioCtxRef.current) {
+                        playCompletionSound(audioCtxRef.current);
+                    }
+
+                    // Series mode logic
+                    if (seriesTarget > 1) {
+                        const newProgress = seriesProgress + 1;
+                        setSeriesProgress(newProgress);
+
+                        if (newProgress >= seriesTarget) {
+                            showNotification(`Series complete! ${seriesTarget} pomodoros done!`);
+                            setSeriesProgress(0);
+                            setSeriesPhase('work');
+                            handleModeChange('longBreak');
+                        } else {
+                            setSeriesPhase('break');
+                            const breakType = newProgress % 4 === 0 ? 'longBreak' : 'shortBreak';
+                            setMode(breakType);
+                            setTimeLeft(durations[breakType]);
+                            lastIntervalRef.current = 0;
+                            showNotification(`${newProgress}/${seriesTarget} done. Break time!`);
+
+                            if (autoSeriesEnabled) {
+                                setTimeout(() => setIsRunning(true), 2000);
+                            } else {
+                                setIsRunning(false);
+                            }
+                        }
+                    } else {
+                        showNotification(`+${points} points! Great focus session!`);
+                        if (newSessions % 4 === 0) {
+                            handleModeChange('longBreak');
+                        } else {
+                            handleModeChange('shortBreak');
+                        }
+                    }
+                } else {
+                    addLogEntry(`${modeLabels[mode]} completed`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playBeep(audioCtxRef.current, 700, 0.15, 2);
+                    }
+
+                    if (seriesTarget > 1 && seriesProgress < seriesTarget) {
+                        setSeriesPhase('work');
+                        setMode('work');
+                        setTimeLeft(durations.work);
+                        lastIntervalRef.current = 0;
+                        showNotification('Break over! Next pomodoro starting...');
+
+                        if (autoSeriesEnabled) {
+                            setTimeout(() => setIsRunning(true), 2000);
+                        } else {
+                            setIsRunning(false);
+                        }
+                    } else {
+                        handleModeChange('work');
+                        showNotification('Break over! Ready to focus?');
+                    }
+                }
+            }, [mode, sessionsCompleted, soundEnabled, seriesTarget, seriesProgress, autoSeriesEnabled]);
+
+            // Timer effect
+            useEffect(() => {
+                let interval = null;
+
+                if (isRunning && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft(prev => {
+                            const newTime = prev - 1;
+
+                            if (tickSoundEnabled && audioCtxRef.current) {
+                                playTickSound(audioCtxRef.current);
+                            }
+
+                            if (intervalSoundEnabled && audioCtxRef.current && mode === 'work') {
+                                const elapsed = durations[mode] - newTime;
+                                const fiveMinIntervals = Math.floor(elapsed / 300);
+                                if (fiveMinIntervals > lastIntervalRef.current && fiveMinIntervals > 0) {
+                                    lastIntervalRef.current = fiveMinIntervals;
+                                    playBeep(audioCtxRef.current, 500, 0.08, fiveMinIntervals);
+                                }
+                            }
+
+                            if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
+                                playBeep(audioCtxRef.current, 600, 0.1, 3);
+                            }
+
+                            return newTime;
+                        });
+                    }, 1000);
+                } else if (timeLeft === 0) {
+                    completeSession();
+                }
+
+                return () => clearInterval(interval);
+            }, [isRunning, timeLeft, mode, intervalSoundEnabled, soundEnabled, tickSoundEnabled, completeSession]);
+
+            const progress = ((durations[mode] - timeLeft) / durations[mode]) * 100;
+            const isWarning = timeLeft <= 60 && isRunning;
+
+            const generateActivityGrid = () => {
+                const weeks = [];
+                const today = new Date();
+                for (let w = 51; w >= 0; w--) {
+                    const week = [];
+                    for (let d = 0; d < 7; d++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - (w * 7 + (6 - d)));
+                        const dateStr = date.toISOString().split('T')[0];
+                        const count = activityData[dateStr] || 0;
+                        let level = 0;
+                        if (count >= 1) level = 1;
+                        if (count >= 3) level = 2;
+                        if (count >= 5) level = 3;
+                        if (count >= 8) level = 4;
+                        week.push({ date: dateStr, count, level });
+                    }
+                    weeks.push(week);
+                }
+                return weeks;
+            };
+
+            const activityGrid = generateActivityGrid();
+            const totalPomodoros = Object.values(activityData).reduce((a, b) => a + b, 0);
+            const levelInfo = getLevel();
+            const elapsedMinutes = Math.floor((durations[mode] - timeLeft) / 60);
+
+            // Generate series dots
+            const renderSeriesDots = () => {
+                if (seriesTarget <= 1) return null;
+                const dots = [];
+                for (let i = 0; i < seriesTarget; i++) {
+                    const isCompleted = i < seriesProgress;
+                    const isCurrent = i === seriesProgress && seriesPhase === 'work';
+                    dots.push(
+                        <div key={`work-${i}`} className={`series-dot ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`} />
+                    );
+                    if (i < seriesTarget - 1) {
+                        const breakCompleted = i < seriesProgress || (i === seriesProgress - 1 && seriesPhase === 'work');
+                        const breakCurrent = i === seriesProgress - 1 && seriesPhase === 'break';
+                        dots.push(
+                            <div key={`break-${i}`} className={`series-dot break ${breakCompleted ? 'completed' : ''} ${breakCurrent ? 'current' : ''}`} />
+                        );
+                    }
+                }
+                return dots;
+            };
+
+            return (
+                <div className="container">
+                    {notification && <div className="notification">{notification}</div>}
+
+                    <div className="eink-screen">
+                        <div className="screen-content">
+                            {/* Header */}
+                            <div className="header">
+                                <div className="header-left">
+                                    <h1>ACTIVETOMATO</h1>
+                                    <div className="subtitle">High-Definition Pomodoro Timer</div>
+                                </div>
+                                <div className="header-right">
+                                    <div className="stat-box">
+                                        <div className="stat-label">Points</div>
+                                        <div className="stat-value">{totalPoints}</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-label">Today</div>
+                                        <div className="stat-value">{todayPomodoros.count}</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-label">Level</div>
+                                        <div className="level-badge">{levelInfo.title}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main Content */}
+                            <div className="main-content">
+                                {/* Series Selector */}
+                                <div className="series-selector">
+                                    <span className="series-label">Session Series</span>
+                                    <div className="series-buttons">
+                                        {[1, 2, 3, 4, 5, 6].map(n => (
+                                            <button
+                                                key={n}
+                                                className={`series-btn ${seriesTarget === n ? 'active' : ''}`}
+                                                onClick={() => handleSeriesSelect(n)}
+                                            >
+                                                {n === 1 ? 'Single' : `${n}x`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {seriesTarget > 1 && (
+                                        <div className="series-progress">
+                                            {renderSeriesDots()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Mode Tabs */}
+                                <div className="mode-tabs">
+                                    <button className={`mode-tab ${mode === 'work' ? 'active' : ''}`} onClick={() => handleModeChange('work')}>Focus</button>
+                                    <button className={`mode-tab ${mode === 'shortBreak' ? 'active' : ''}`} onClick={() => handleModeChange('shortBreak')}>Short</button>
+                                    <button className={`mode-tab ${mode === 'longBreak' ? 'active' : ''}`} onClick={() => handleModeChange('longBreak')}>Long</button>
+                                </div>
+
+                                {/* Timer Display */}
+                                <div className="timer-display">
+                                    <div className="timer-label">{modeLabels[mode]}</div>
+                                    <div className={`timer-digits ${isWarning ? 'warning' : ''}`}>
+                                        {formatTime(timeLeft)}
+                                    </div>
+                                    <div className="timer-progress">
+                                        <div className="timer-progress-bar" style={{ width: `${progress}%` }} />
+                                    </div>
+                                    {mode === 'work' && (
+                                        <div className="interval-indicator">{elapsedMinutes} min elapsed</div>
+                                    )}
+                                </div>
+
+                                {/* Controls */}
+                                <div className="controls">
+                                    <button className="btn primary" onClick={toggleTimer}>
+                                        {isRunning ? 'Pause' : 'Start'}
+                                    </button>
+                                    <button className="btn" onClick={resetTimer}>Reset</button>
+                                </div>
+
+                                {/* Toggle Panels */}
+                                <div className="toggle-panels">
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Sounds</div>
+                                        <div className="toggle-item" onClick={() => { initAudio(); setSoundEnabled(!soundEnabled); }}>
+                                            <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
+                                            <label>End Alert</label>
+                                        </div>
+                                        <div className="toggle-item" onClick={() => { initAudio(); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                            <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
+                                            <label>5-Min Beeps</label>
+                                        </div>
+                                        <div className="toggle-item" onClick={() => { initAudio(); setTickSoundEnabled(!tickSoundEnabled); }}>
+                                            <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
+                                            <label>Tick Sound</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Reminders</div>
+                                        <div className="toggle-item" onClick={() => { initAudio(); setReminderEnabled(!reminderEnabled); }}>
+                                            <div className={`toggle-switch ${reminderEnabled ? 'on' : ''}`} />
+                                            <label>Ping Reminder</label>
+                                        </div>
+                                        {reminderEnabled && (
+                                            <div className="reminder-settings">
+                                                <span className="reminder-label">Every</span>
+                                                <select
+                                                    className="reminder-select"
+                                                    value={reminderInterval}
+                                                    onChange={(e) => setReminderInterval(parseInt(e.target.value))}
+                                                >
+                                                    <option value={5}>5 min</option>
+                                                    <option value={10}>10 min</option>
+                                                    <option value={15}>15 min</option>
+                                                    <option value={30}>30 min</option>
+                                                    <option value={60}>1 hour</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="toggle-item" onClick={() => setAutoStartEnabled(!autoStartEnabled)}>
+                                            <div className={`toggle-switch ${autoStartEnabled ? 'on' : ''}`} />
+                                            <label>Auto-Start on Ping</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Series Mode</div>
+                                        <div className="toggle-item" onClick={() => setAutoSeriesEnabled(!autoSeriesEnabled)}>
+                                            <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
+                                            <label>Auto-Continue Series</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Activity Section */}
+                            <div className="activity-section">
+                                <div className="activity-header">
+                                    <span className="activity-title">Activity</span>
+                                    <span className="activity-stats">{totalPomodoros} pomodoros this year</span>
+                                </div>
+                                <div className="activity-grid">
+                                    {activityGrid.map((week, wi) => (
+                                        <div key={wi} className="activity-week">
+                                            {week.map((day, di) => (
+                                                <div key={di} className={`activity-day level-${day.level}`} title={`${day.date}: ${day.count} pomodoros`} />
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="activity-legend">
+                                    <span>Less</span>
+                                    <div className="legend-box activity-day" />
+                                    <div className="legend-box activity-day level-1" />
+                                    <div className="legend-box activity-day level-2" />
+                                    <div className="legend-box activity-day level-3" />
+                                    <div className="legend-box activity-day level-4" />
+                                    <span>More</span>
+                                </div>
+
+                                {todayLog.entries.length > 0 && (
+                                    <div className="today-log">
+                                        <div className="today-log-title">Today's Log</div>
+                                        {todayLog.entries.map((entry, i) => (
+                                            <div key={i} className="log-entry">
+                                                <span className="log-time">{entry.time}</span> — {entry.message}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<ActiveTomato />);
+    </script>
+</body>
+</html>

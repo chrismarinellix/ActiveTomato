@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActiveTomato Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #c4c4b0;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #fff;
+            border-bottom: 2px solid #3a3a3a;
+            padding-bottom: 10px;
+        }
+        .test-group {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .test-group h2 {
+            margin: 0 0 15px 0;
+            font-size: 1rem;
+            color: #888;
+        }
+        .test {
+            padding: 8px 0;
+            border-bottom: 1px dotted #3a3a3a;
+        }
+        .test:last-child {
+            border-bottom: none;
+        }
+        .pass {
+            color: #4ade80;
+        }
+        .fail {
+            color: #f87171;
+        }
+        .pass::before {
+            content: '✓ ';
+        }
+        .fail::before {
+            content: '✗ ';
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+        .run-btn {
+            background: #3a3a3a;
+            color: #c4c4b0;
+            border: none;
+            padding: 15px 30px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .run-btn:hover {
+            background: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <h1>ActiveTomato Test Suite</h1>
+    <button class="run-btn" onclick="runTests()">Run All Tests</button>
+    <div id="results"></div>
+
+    <script>
+        let passed = 0;
+        let failed = 0;
+        let results = [];
+
+        function assert(condition, testName) {
+            if (condition) {
+                passed++;
+                results.push({ name: testName, pass: true });
+            } else {
+                failed++;
+                results.push({ name: testName, pass: false });
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('activeTomatoPoints');
+            localStorage.removeItem('activeTomatoToday');
+            localStorage.removeItem('activeTomatoActivity');
+            localStorage.removeItem('activeTomatoLog');
+            localStorage.removeItem('activeTomatoStreak');
+        }
+
+        // Test functions
+        function testFormatTime() {
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            assert(formatTime(0) === '00:00', 'formatTime(0) returns 00:00');
+            assert(formatTime(60) === '01:00', 'formatTime(60) returns 01:00');
+            assert(formatTime(90) === '01:30', 'formatTime(90) returns 01:30');
+            assert(formatTime(25 * 60) === '25:00', 'formatTime(1500) returns 25:00');
+            assert(formatTime(5 * 60 + 30) === '05:30', 'formatTime(330) returns 05:30');
+        }
+
+        function testDurations() {
+            const durations = {
+                work: 25 * 60,
+                shortBreak: 5 * 60,
+                longBreak: 15 * 60
+            };
+
+            assert(durations.work === 1500, 'Work duration is 25 minutes (1500 seconds)');
+            assert(durations.shortBreak === 300, 'Short break is 5 minutes (300 seconds)');
+            assert(durations.longBreak === 900, 'Long break is 15 minutes (900 seconds)');
+        }
+
+        function testLevelCalculation() {
+            const getLevel = (points) => {
+                if (points < 100) return { level: 1, title: 'Seedling' };
+                if (points < 300) return { level: 2, title: 'Sprout' };
+                if (points < 600) return { level: 3, title: 'Sapling' };
+                if (points < 1000) return { level: 4, title: 'Tree' };
+                if (points < 2000) return { level: 5, title: 'Grove' };
+                return { level: 6, title: 'Forest' };
+            };
+
+            assert(getLevel(0).title === 'Seedling', 'Level at 0 points is Seedling');
+            assert(getLevel(99).title === 'Seedling', 'Level at 99 points is Seedling');
+            assert(getLevel(100).title === 'Sprout', 'Level at 100 points is Sprout');
+            assert(getLevel(299).title === 'Sprout', 'Level at 299 points is Sprout');
+            assert(getLevel(300).title === 'Sapling', 'Level at 300 points is Sapling');
+            assert(getLevel(600).title === 'Tree', 'Level at 600 points is Tree');
+            assert(getLevel(1000).title === 'Grove', 'Level at 1000 points is Grove');
+            assert(getLevel(2000).title === 'Forest', 'Level at 2000 points is Forest');
+        }
+
+        function testIntervalCalculation() {
+            const calcIntervals = (elapsed) => Math.floor(elapsed / 300);
+
+            assert(calcIntervals(0) === 0, '0 seconds = 0 intervals');
+            assert(calcIntervals(299) === 0, '299 seconds = 0 intervals');
+            assert(calcIntervals(300) === 1, '300 seconds (5 min) = 1 interval');
+            assert(calcIntervals(600) === 2, '600 seconds (10 min) = 2 intervals');
+            assert(calcIntervals(900) === 3, '900 seconds (15 min) = 3 intervals');
+            assert(calcIntervals(1500) === 5, '1500 seconds (25 min) = 5 intervals');
+        }
+
+        function testActivityLevels() {
+            const getActivityLevel = (count) => {
+                if (count >= 8) return 4;
+                if (count >= 5) return 3;
+                if (count >= 3) return 2;
+                if (count >= 1) return 1;
+                return 0;
+            };
+
+            assert(getActivityLevel(0) === 0, '0 pomodoros = level 0');
+            assert(getActivityLevel(1) === 1, '1 pomodoro = level 1');
+            assert(getActivityLevel(2) === 1, '2 pomodoros = level 1');
+            assert(getActivityLevel(3) === 2, '3 pomodoros = level 2');
+            assert(getActivityLevel(5) === 3, '5 pomodoros = level 3');
+            assert(getActivityLevel(8) === 4, '8 pomodoros = level 4');
+            assert(getActivityLevel(10) === 4, '10 pomodoros = level 4');
+        }
+
+        function testLocalStorageKeys() {
+            clearStorage();
+
+            localStorage.setItem('activeTomatoPoints', '100');
+            localStorage.setItem('activeTomatoToday', JSON.stringify({ date: new Date().toDateString(), count: 2 }));
+            localStorage.setItem('activeTomatoActivity', JSON.stringify({ '2026-01-13': 3 }));
+
+            assert(localStorage.getItem('activeTomatoPoints') === '100', 'Points stored correctly');
+            assert(JSON.parse(localStorage.getItem('activeTomatoToday')).count === 2, 'Today count stored correctly');
+            assert(JSON.parse(localStorage.getItem('activeTomatoActivity'))['2026-01-13'] === 3, 'Activity data stored correctly');
+
+            clearStorage();
+        }
+
+        function testPointsAwarded() {
+            const POINTS_PER_POMODORO = 25;
+            assert(POINTS_PER_POMODORO === 25, 'Points per pomodoro is 25');
+
+            const calcTotalPoints = (pomodoros) => pomodoros * POINTS_PER_POMODORO;
+            assert(calcTotalPoints(1) === 25, '1 pomodoro = 25 points');
+            assert(calcTotalPoints(4) === 100, '4 pomodoros = 100 points');
+            assert(calcTotalPoints(10) === 250, '10 pomodoros = 250 points');
+        }
+
+        function testSessionCycle() {
+            const shouldTakeLongBreak = (sessions) => sessions % 4 === 0 && sessions > 0;
+
+            assert(!shouldTakeLongBreak(0), 'Session 0: no long break');
+            assert(!shouldTakeLongBreak(1), 'Session 1: no long break');
+            assert(!shouldTakeLongBreak(2), 'Session 2: no long break');
+            assert(!shouldTakeLongBreak(3), 'Session 3: no long break');
+            assert(shouldTakeLongBreak(4), 'Session 4: long break');
+            assert(!shouldTakeLongBreak(5), 'Session 5: no long break');
+            assert(shouldTakeLongBreak(8), 'Session 8: long break');
+        }
+
+        function runTests() {
+            passed = 0;
+            failed = 0;
+            results = [];
+
+            const tests = [
+                { name: 'Time Formatting', fn: testFormatTime },
+                { name: 'Timer Durations', fn: testDurations },
+                { name: 'Level Calculation', fn: testLevelCalculation },
+                { name: 'Interval Calculation', fn: testIntervalCalculation },
+                { name: 'Activity Levels', fn: testActivityLevels },
+                { name: 'LocalStorage', fn: testLocalStorageKeys },
+                { name: 'Points System', fn: testPointsAwarded },
+                { name: 'Session Cycle', fn: testSessionCycle }
+            ];
+
+            let currentGroup = '';
+            let html = '';
+
+            tests.forEach(test => {
+                const startPassed = passed;
+                const startFailed = failed;
+                const startResults = results.length;
+
+                test.fn();
+
+                const groupResults = results.slice(startResults);
+                html += `<div class="test-group"><h2>${test.name}</h2>`;
+                groupResults.forEach(r => {
+                    html += `<div class="test ${r.pass ? 'pass' : 'fail'}">${r.name}</div>`;
+                });
+                html += '</div>';
+            });
+
+            html += `<div class="summary">`;
+            html += `<span class="pass">${passed} passed</span> / `;
+            html += `<span class="${failed > 0 ? 'fail' : ''}">${failed} failed</span>`;
+            html += `</div>`;
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        // Run on load
+        runTests();
+    </script>
+</body>
+</html>
