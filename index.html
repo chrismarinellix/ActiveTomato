@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         /* ==========================================
-           MOBILE-FIRST CSS
-           Base styles = mobile, desktop via min-width
+           MOBILE-FIRST CSS - EVERYTHING VISIBLE
+           Base = mobile, enhanced via min-width
            ========================================== */
 
         * {
@@ -42,12 +42,11 @@
             overflow: hidden;
         }
 
-        /* BASE: Simple full-screen for mobile */
         .eink-screen {
             background: #f5f5f0;
             width: 100%;
             height: 100%;
-            padding: 12px;
+            padding: 8px 10px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -65,22 +64,23 @@
             min-height: 0;
         }
 
-        /* BASE: Compact header for mobile */
+        /* HEADER - compact on mobile */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
             border-bottom: 1px solid rgba(0,0,0,0.1);
             flex-shrink: 0;
+            height: 32px;
         }
 
         .header-left h1 {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             font-weight: 600;
             color: #1a1a1a;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         .header-left .subtitle {
@@ -89,16 +89,16 @@
 
         .header-right {
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            align-items: center;
         }
 
-        /* BASE: Compact stats for mobile */
         .stat-box {
             text-align: right;
         }
 
         .stat-label {
-            font-size: 0.45rem;
+            font-size: 0.4rem;
             color: #999;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -106,55 +106,62 @@
 
         .stat-value {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: #1a1a1a;
         }
 
         .level-badge {
             display: inline-block;
-            padding: 3px 8px;
+            padding: 2px 6px;
             background: #1a1a1a;
             color: #f5f5f0;
-            font-size: 0.5rem;
+            font-size: 0.4rem;
             font-weight: 500;
             letter-spacing: 0.5px;
             border-radius: 2px;
         }
 
-        /* BASE: Main content fills available space */
+        /* MAIN CONTENT */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 6px 0;
             min-height: 0;
+            overflow: hidden;
         }
 
-        /* BASE: Hide series selector on mobile */
+        /* SERIES SELECTOR - compact on mobile */
         .series-selector {
-            display: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 3px;
+            flex-shrink: 0;
         }
 
         .series-label {
-            font-size: 0.7rem;
+            font-size: 0.45rem;
             color: #666;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .series-buttons {
             display: flex;
-            gap: 8px;
+            gap: 3px;
         }
 
         .series-btn {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
+            font-size: 0.5rem;
             font-weight: 500;
-            padding: 8px 16px;
+            padding: 4px 6px;
             border: 1px solid rgba(0,0,0,0.15);
             background: transparent;
             color: #555;
@@ -175,15 +182,15 @@
 
         .series-progress {
             display: flex;
-            gap: 6px;
-            margin-left: 15px;
-            padding-left: 15px;
+            gap: 3px;
+            margin-left: 6px;
+            padding-left: 6px;
             border-left: 1px solid rgba(0,0,0,0.1);
         }
 
         .series-dot {
-            width: 10px;
-            height: 10px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: rgba(0,0,0,0.1);
             transition: all 0.2s ease;
@@ -195,14 +202,14 @@
 
         .series-dot.current {
             background: transparent;
-            border: 2px solid #1a1a1a;
+            border: 1.5px solid #1a1a1a;
             animation: pulse 1.5s infinite;
         }
 
         .series-dot.break {
-            width: 6px;
-            height: 6px;
-            margin: 2px 0;
+            width: 4px;
+            height: 4px;
+            margin: 1px 0;
             background: rgba(0,0,0,0.2);
         }
 
@@ -210,11 +217,11 @@
             background: #666;
         }
 
-        /* BASE: Compact mode tabs for mobile */
+        /* MODE TABS */
         .mode-tabs {
             display: flex;
             gap: 0;
-            margin-bottom: 10px;
+            margin: 6px 0;
             border: 1px solid rgba(0,0,0,0.15);
             border-radius: 3px;
             overflow: hidden;
@@ -223,15 +230,15 @@
 
         .mode-tab {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.55rem;
+            font-size: 0.5rem;
             font-weight: 500;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: none;
             background: transparent;
             color: #666;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             transition: all 0.15s ease;
             border-right: 1px solid rgba(0,0,0,0.1);
         }
@@ -249,35 +256,34 @@
             background: rgba(0,0,0,0.04);
         }
 
-        /* BASE: Timer - sized for mobile */
+        /* TIMER - SMALL on mobile */
         .timer-display {
-            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            min-height: 0;
+            padding: 8px 0;
+            flex-shrink: 0;
         }
 
         .timer-label {
-            font-size: 0.6rem;
+            font-size: 0.45rem;
             color: #888;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
         }
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 18vw;
+            font-size: 2.5rem;
             font-weight: 700;
             color: #0a0a0a;
-            letter-spacing: -2px;
+            letter-spacing: -1px;
             line-height: 1;
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         .timer-digits.warning {
@@ -295,12 +301,12 @@
         }
 
         .timer-progress {
-            width: 80%;
-            max-width: 300px;
-            height: 3px;
+            width: 60%;
+            max-width: 150px;
+            height: 2px;
             background: rgba(0,0,0,0.08);
-            border-radius: 2px;
-            margin-top: 12px;
+            border-radius: 1px;
+            margin-top: 6px;
             overflow: hidden;
         }
 
@@ -311,35 +317,36 @@
         }
 
         .interval-indicator {
-            margin-top: 8px;
-            font-size: 0.55rem;
+            margin-top: 2px;
+            font-size: 0.4rem;
             color: #999;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
-        /* BASE: Controls sized for mobile */
+        /* CONTROLS - BIG AND TOUCHABLE */
         .controls {
             display: flex;
             justify-content: center;
-            gap: 12px;
-            margin: 12px 0;
+            gap: 10px;
+            margin: 10px 0;
             flex-shrink: 0;
         }
 
         .btn {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.7rem;
-            font-weight: 500;
+            font-size: 0.75rem;
+            font-weight: 600;
             padding: 14px 24px;
-            border: 1px solid #1a1a1a;
+            border: 2px solid #1a1a1a;
             background: transparent;
             color: #1a1a1a;
             cursor: pointer;
-            border-radius: 2px;
+            border-radius: 4px;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             transition: all 0.15s ease;
             min-height: 48px;
+            min-width: 100px;
             touch-action: manipulation;
         }
 
@@ -356,45 +363,54 @@
             background: #2a2a2a;
         }
 
-        /* BASE: Hide toggle panels on mobile */
+        /* TOGGLE PANELS - compact horizontal on mobile */
         .toggle-panels {
-            display: none;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 6px;
+            background: rgba(0,0,0,0.02);
+            border-radius: 3px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
         }
 
         .toggle-group {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
         }
 
         .toggle-group-label {
-            font-size: 0.6rem;
+            font-size: 0.4rem;
             color: #999;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            padding-bottom: 5px;
-            border-bottom: 1px solid rgba(0,0,0,0.08);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         .toggle-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 4px;
             cursor: pointer;
         }
 
         .toggle-item label {
-            font-size: 0.7rem;
+            font-size: 0.4rem;
             color: #555;
             cursor: pointer;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
         }
 
+        /* TOGGLE SWITCH - small on mobile */
         .toggle-switch {
-            width: 38px;
-            height: 20px;
+            width: 24px;
+            height: 14px;
             background: rgba(0,0,0,0.12);
-            border-radius: 10px;
+            border-radius: 7px;
             position: relative;
             transition: background 0.2s ease;
             flex-shrink: 0;
@@ -407,8 +423,8 @@
         .toggle-switch::after {
             content: '';
             position: absolute;
-            width: 16px;
-            height: 16px;
+            width: 10px;
+            height: 10px;
             background: #f5f5f0;
             border-radius: 50%;
             top: 2px;
@@ -418,22 +434,18 @@
         }
 
         .toggle-switch.on::after {
-            left: 20px;
+            left: 12px;
         }
 
-        /* Reminder settings */
+        /* Reminder settings - hidden on mobile (too complex) */
         .reminder-settings {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-            padding-left: 48px;
+            display: none;
         }
 
         .reminder-select {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.7rem;
-            padding: 5px 10px;
+            font-size: 0.5rem;
+            padding: 3px 6px;
             border: 1px solid rgba(0,0,0,0.15);
             border-radius: 2px;
             background: #fff;
@@ -442,22 +454,19 @@
         }
 
         .reminder-label {
-            font-size: 0.65rem;
+            font-size: 0.45rem;
             color: #888;
         }
 
-        /* Tick style selector */
+        /* Tick style selector - hidden on mobile */
         .tick-style-selector {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-            padding-left: 48px;
+            display: none;
         }
 
         .tick-style-btn {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.6rem;
-            padding: 4px 10px;
+            font-size: 0.45rem;
+            padding: 2px 6px;
             border: 1px solid rgba(0,0,0,0.15);
             border-radius: 2px;
             background: transparent;
@@ -484,6 +493,11 @@
 
         .tick-style-btn:disabled {
             cursor: default;
+        }
+
+        /* Beep interval selector - hidden on mobile */
+        .beep-interval-selector {
+            display: none;
         }
 
         /* Activity Section */
@@ -923,9 +937,11 @@
                 overflow-y: auto;
             }
 
+            /* Header - full size */
             .header {
                 padding-bottom: 20px;
                 margin-bottom: 20px;
+                height: auto;
             }
 
             .header-left h1 {
@@ -962,19 +978,36 @@
 
             .main-content {
                 padding: 20px 0;
+                justify-content: center;
             }
 
-            /* Show series selector on desktop */
+            /* Series selector - full size */
             .series-selector {
-                display: flex;
-                align-items: center;
                 gap: 15px;
                 margin-bottom: 25px;
                 padding: 12px 20px;
-                background: rgba(0,0,0,0.03);
-                border-radius: 3px;
             }
 
+            .series-label {
+                font-size: 0.7rem;
+            }
+
+            .series-btn {
+                font-size: 0.8rem;
+                padding: 8px 16px;
+            }
+
+            .series-dot {
+                width: 10px;
+                height: 10px;
+            }
+
+            .series-dot.break {
+                width: 6px;
+                height: 6px;
+            }
+
+            /* Mode tabs - full size */
             .mode-tabs {
                 margin-bottom: 30px;
             }
@@ -985,9 +1018,9 @@
                 letter-spacing: 2px;
             }
 
+            /* Timer - LARGE on desktop */
             .timer-display {
-                flex: none;
-                margin: 20px 0;
+                padding: 20px 0;
             }
 
             .timer-label {
@@ -1003,6 +1036,7 @@
             }
 
             .timer-progress {
+                width: 100%;
                 max-width: 600px;
                 height: 4px;
                 margin-top: 30px;
@@ -1013,6 +1047,7 @@
                 font-size: 0.75rem;
             }
 
+            /* Controls - full size */
             .controls {
                 gap: 15px;
                 margin: 30px 0;
@@ -1022,18 +1057,68 @@
                 font-size: 0.85rem;
                 padding: 14px 45px;
                 letter-spacing: 3px;
+                border-width: 1px;
             }
 
-            /* Show toggle panels on desktop */
+            /* Toggle panels - full column layout */
             .toggle-panels {
-                display: flex;
-                justify-content: center;
                 gap: 40px;
                 margin: 20px 0;
                 padding: 20px 30px;
-                background: rgba(0,0,0,0.02);
-                border-radius: 3px;
                 border: 1px solid rgba(0,0,0,0.05);
+            }
+
+            .toggle-group {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .toggle-group-label {
+                font-size: 0.6rem;
+                padding-bottom: 5px;
+                border-bottom: 1px solid rgba(0,0,0,0.08);
+            }
+
+            .toggle-item {
+                gap: 10px;
+            }
+
+            .toggle-item label {
+                font-size: 0.7rem;
+            }
+
+            /* Toggle switch - full size */
+            .toggle-switch {
+                width: 38px;
+                height: 20px;
+                border-radius: 10px;
+            }
+
+            .toggle-switch::after {
+                width: 16px;
+                height: 16px;
+            }
+
+            .toggle-switch.on::after {
+                left: 20px;
+            }
+
+            /* Show sub-settings on desktop */
+            .reminder-settings {
+                display: flex;
+                padding-left: 48px;
+            }
+
+            .tick-style-selector {
+                display: flex;
+                gap: 6px;
+                margin-top: 8px;
+                padding-left: 48px;
+            }
+
+            .tick-style-btn {
+                font-size: 0.6rem;
+                padding: 4px 10px;
             }
 
             /* Show activity section on desktop */
