@@ -962,23 +962,25 @@
 
         const playStartSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Rich startup sequence - 2.5 seconds of building energy
+            // Warm, gentle startup - 2 seconds of soft building energy
             const now = audioCtx.currentTime;
 
-            // Initial warm-up pulse
-            const pulseOsc = audioCtx.createOscillator();
-            const pulseGain = audioCtx.createGain();
-            pulseOsc.connect(pulseGain);
-            pulseGain.connect(audioCtx.destination);
-            pulseOsc.frequency.value = 80;
-            pulseOsc.type = 'sine';
-            pulseGain.gain.setValueAtTime(0.15, now);
-            pulseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
-            pulseOsc.start(now);
-            pulseOsc.stop(now + 0.8);
+            // Deep warm hum
+            const humOsc = audioCtx.createOscillator();
+            const humGain = audioCtx.createGain();
+            humOsc.connect(humGain);
+            humGain.connect(audioCtx.destination);
+            humOsc.frequency.value = 55;
+            humOsc.type = 'sine';
+            humGain.gain.setValueAtTime(0, now);
+            humGain.gain.linearRampToValueAtTime(0.12, now + 0.3);
+            humGain.gain.linearRampToValueAtTime(0.08, now + 1.2);
+            humGain.gain.linearRampToValueAtTime(0, now + 2);
+            humOsc.start(now);
+            humOsc.stop(now + 2);
 
-            // Rising tone sequence
-            [220, 330, 440, 550, 660].forEach((freq, i) => {
+            // Soft rising tones - lower frequencies, gentler
+            [110, 165, 220, 275, 330].forEach((freq, i) => {
                 setTimeout(() => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -986,16 +988,17 @@
                     gain.connect(audioCtx.destination);
                     osc.frequency.value = freq;
                     osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.1);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
                     osc.start(audioCtx.currentTime);
-                    osc.stop(audioCtx.currentTime + 0.25);
-                }, 300 + i * 200);
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }, 200 + i * 250);
             });
 
-            // Final confirmation chime
+            // Gentle confirmation - soft chime
             setTimeout(() => {
-                [880, 1100, 880].forEach((freq, i) => {
+                [330, 440, 330].forEach((freq, i) => {
                     setTimeout(() => {
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
@@ -1003,77 +1006,79 @@
                         gain.connect(audioCtx.destination);
                         osc.frequency.value = freq;
                         osc.type = 'sine';
-                        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.05);
+                        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
                         osc.start(audioCtx.currentTime);
-                        osc.stop(audioCtx.currentTime + 0.15);
-                    }, i * 100);
+                        osc.stop(audioCtx.currentTime + 0.25);
+                    }, i * 150);
                 });
             }, 1500);
         };
 
         const playPauseSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Descending wind-down - clear pause indication
-            [500, 400, 300, 200].forEach((freq, i) => {
-                setTimeout(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.frequency.value = freq;
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-                    osc.start(audioCtx.currentTime);
-                    osc.stop(audioCtx.currentTime + 0.15);
-                }, i * 120);
-            });
+            // Soft descending hum
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.4);
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.4);
         };
 
         const playClickSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Quick tactile click for buttons
+            // Soft thud
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.frequency.value = 600;
-            osc.type = 'square';
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.02);
+            osc.frequency.value = 150;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.06);
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.02);
+            osc.stop(audioCtx.currentTime + 0.06);
         };
 
         const playModeChangeSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Soft mode transition
+            // Gentle whoosh
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.frequency.value = 440;
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(280, audioCtx.currentTime + 0.15);
             osc.type = 'sine';
-            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.1);
+            osc.stop(audioCtx.currentTime + 0.15);
         };
 
         const playToggleSound = (audioCtx, on) => {
             if (!audioCtx) return;
-            // Toggle on/off feedback
+            // Soft pop
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.frequency.value = on ? 800 : 400;
+            osc.frequency.value = on ? 280 : 180;
             osc.type = 'sine';
-            gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.02);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08);
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.05);
+            osc.stop(audioCtx.currentTime + 0.08);
         };
 
         // Tick sound styles
