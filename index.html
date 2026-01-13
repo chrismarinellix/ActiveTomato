@@ -832,6 +832,19 @@
             font-size: 0.7rem;
         }
 
+        .sync-indicator.connected {
+            color: #4a4;
+        }
+
+        .sync-indicator.error {
+            color: #a44;
+            background: rgba(170,68,68,0.1);
+        }
+
+        .sync-indicator.connecting {
+            color: #aa4;
+        }
+
         .sync-dot {
             width: 6px;
             height: 6px;
@@ -1592,6 +1605,11 @@
 
             // Load data from Supabase on mount and subscribe to realtime
             useEffect(() => {
+                // If no supabase, mark as error
+                if (!supabase) {
+                    setSyncStatus('error');
+                }
+
                 if (user?.id && !dataLoaded) {
                     // Load activity data
                     loadUserDataFromSupabase(user.id).then(data => {
@@ -1660,8 +1678,14 @@
                                 table: 'timer_state',
                                 filter: `user_id=eq.${user.id}`
                             }, handleTimerUpdate)
-                            .subscribe((status) => {
-                                console.log('Realtime subscription status:', status);
+                            .subscribe((status, err) => {
+                                console.log('Realtime subscription status:', status, err || '');
+                                if (status === 'SUBSCRIBED') {
+                                    setSyncStatus('connected');
+                                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                                    setSyncStatus('error');
+                                    console.error('Realtime subscription error:', status, err);
+                                }
                             });
 
                         realtimeChannelRef.current = channel;
@@ -1690,6 +1714,7 @@
 
             const [notification, setNotification] = useState(null);
             const [hoveredDay, setHoveredDay] = useState(null);
+            const [syncStatus, setSyncStatus] = useState('connecting'); // 'connecting', 'connected', 'error'
 
             const audioCtxRef = useRef(null);
             const lastIntervalRef = useRef(0);
@@ -2071,9 +2096,32 @@
                                         {onLogout && (
                                             <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
                                         )}
-                                        <span className="sync-indicator">
-                                            <span className="sync-icon">⟳</span> Synced
-                                            <span className="sync-tooltip">Timer syncs across all your devices in real-time</span>
+                                        <span className={`sync-indicator ${syncStatus}`} onClick={() => {
+                                            // Manual refresh on click
+                                            if (user?.id) {
+                                                loadTimerState(user.id).then(state => {
+                                                    if (state) {
+                                                        syncingFromRemoteRef.current = true;
+                                                        setMode(state.mode);
+                                                        setTimeLeft(state.timeLeft);
+                                                        setIsRunning(state.isRunning);
+                                                        setSeriesTarget(state.seriesTarget);
+                                                        setSeriesProgress(state.seriesProgress);
+                                                        setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                                                        console.log('Manual sync completed');
+                                                    }
+                                                });
+                                            }
+                                        }}>
+                                            <span className="sync-icon">{syncStatus === 'connected' ? '⟳' : syncStatus === 'error' ? '✕' : '◌'}</span>
+                                            {syncStatus === 'connected' ? 'Synced' : syncStatus === 'error' ? 'Offline' : 'Connecting...'}
+                                            <span className="sync-tooltip">
+                                                {syncStatus === 'connected'
+                                                    ? 'Timer syncs across all your devices. Tap to refresh.'
+                                                    : syncStatus === 'error'
+                                                    ? 'Sync disconnected. Tap to retry. Check if Realtime is enabled in Supabase.'
+                                                    : 'Connecting to sync service...'}
+                                            </span>
                                         </span>
                                     </div>
                                 </div>
