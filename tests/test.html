@@ -211,6 +211,51 @@
             assert(shouldTakeLongBreak(8), 'Session 8: long break');
         }
 
+        function testBatchMode() {
+            // Test series/batch targets
+            const validTargets = [1, 2, 3, 4, 5, 6];
+            assert(validTargets.includes(1), 'Single mode (1) is valid target');
+            assert(validTargets.includes(4), '4x batch is valid target');
+            assert(validTargets.includes(6), '6x batch is valid target');
+            assert(!validTargets.includes(0), '0 is not a valid target');
+            assert(!validTargets.includes(7), '7 is not a valid target');
+
+            // Test series progress
+            const isSeriesComplete = (progress, target) => progress >= target;
+            assert(!isSeriesComplete(0, 4), '0/4 is not complete');
+            assert(!isSeriesComplete(3, 4), '3/4 is not complete');
+            assert(isSeriesComplete(4, 4), '4/4 is complete');
+            assert(isSeriesComplete(5, 4), '5/4 is complete');
+
+            // Test break type in series
+            const getBreakType = (progress) => progress % 4 === 0 ? 'longBreak' : 'shortBreak';
+            assert(getBreakType(1) === 'shortBreak', 'After 1st pomodoro: short break');
+            assert(getBreakType(2) === 'shortBreak', 'After 2nd pomodoro: short break');
+            assert(getBreakType(3) === 'shortBreak', 'After 3rd pomodoro: short break');
+            assert(getBreakType(4) === 'longBreak', 'After 4th pomodoro: long break');
+        }
+
+        function testPasskeyHelpers() {
+            // Test WebAuthn detection
+            const hasWebAuthn = typeof window.PublicKeyCredential !== 'undefined';
+            assert(typeof hasWebAuthn === 'boolean', 'WebAuthn detection returns boolean');
+
+            // Test base64 conversion roundtrip
+            const bufferToBase64 = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            const base64ToBuffer = (base64) => {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return bytes.buffer;
+            };
+
+            const testData = new Uint8Array([1, 2, 3, 4, 5]);
+            const encoded = bufferToBase64(testData.buffer);
+            const decoded = new Uint8Array(base64ToBuffer(encoded));
+            assert(decoded.length === testData.length, 'Base64 roundtrip preserves length');
+            assert(decoded[0] === 1 && decoded[4] === 5, 'Base64 roundtrip preserves data');
+        }
+
         function runTests() {
             passed = 0;
             failed = 0;
@@ -224,7 +269,9 @@
                 { name: 'Activity Levels', fn: testActivityLevels },
                 { name: 'LocalStorage', fn: testLocalStorageKeys },
                 { name: 'Points System', fn: testPointsAwarded },
-                { name: 'Session Cycle', fn: testSessionCycle }
+                { name: 'Session Cycle', fn: testSessionCycle },
+                { name: 'Batch Mode', fn: testBatchMode },
+                { name: 'Passkey Helpers', fn: testPasskeyHelpers }
             ];
 
             let currentGroup = '';

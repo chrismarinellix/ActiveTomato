@@ -43,13 +43,7 @@ A high-definition e-ink styled Pomodoro timer with batch sessions, smart reminde
 
 ## Setup
 
-### Quick Start (Guest Mode)
-```bash
-open index.html
-```
-Works immediately with localStorage - no backend needed.
-
-### With Supabase (Cloud Sync)
+### Supabase Configuration
 
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 
@@ -66,6 +60,10 @@ const SUPABASE_ANON_KEY = 'your-anon-key';
 
 4. Enable Email Auth in Supabase Dashboard:
    - Authentication → Providers → Email
+
+### Authentication
+- **Email/Password**: Enter email and password - new users are automatically registered
+- **Passkey**: Use WebAuthn passkeys for passwordless login (browser support required)
 
 ## Deploy to Netlify
 

@@ -1264,8 +1264,8 @@
                                 <div className="header-left">
                                     <h1>ACTIVETOMATO</h1>
                                     <div className="subtitle">
-                                        {user ? (user.email || 'Signed In') : 'Guest Mode'}
-                                        {user && onLogout && (
+                                        {user?.email || 'Signed In'}
+                                        {onLogout && (
                                             <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
                                         )}
                                     </div>
@@ -1461,9 +1461,8 @@
             return bytes.buffer;
         };
 
-        // Auth Component
+        // Auth Component - Simplified single flow
         function AuthScreen({ onAuth }) {
-            const [isLogin, setIsLogin] = useState(true);
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
@@ -1474,11 +1473,11 @@
                 setPasskeySupported(isPasskeySupported());
             }, []);
 
-            const handleSubmit = async (e) => {
+            // Smart auth - tries sign in first, then sign up if user doesn't exist
+            const handleContinue = async (e) => {
                 e.preventDefault();
                 if (!supabase) {
-                    // Demo mode - skip auth
-                    onAuth({ email: 'demo@example.com', id: 'demo' });
+                    onAuth({ email, id: 'demo' });
                     return;
                 }
 
@@ -1486,17 +1485,25 @@
                 setError('');
 
                 try {
-                    if (isLogin) {
-                        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                        if (error) throw error;
-                        onAuth(data.user);
-                    } else {
-                        const { data, error } = await supabase.auth.signUp({ email, password });
-                        if (error) throw error;
-                        if (data.user) {
-                            onAuth(data.user);
+                    // Try sign in first
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+                    if (!signInError) {
+                        onAuth(signInData.user);
+                        return;
+                    }
+
+                    // If invalid credentials, try sign up (new user)
+                    if (signInError.message.includes('Invalid login credentials')) {
+                        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+                        if (signUpError) throw signUpError;
+                        if (signUpData.user) {
+                            onAuth(signUpData.user);
+                            return;
                         }
                     }
+
+                    throw signInError;
                 } catch (err) {
                     setError(err.message);
                 } finally {
@@ -1504,70 +1511,7 @@
                 }
             };
 
-            const handlePasskeyRegister = async () => {
-                if (!email) {
-                    setError('Please enter your email first');
-                    return;
-                }
-
-                setLoading(true);
-                setError('');
-
-                try {
-                    const challenge = generateChallenge();
-                    const userId = new TextEncoder().encode(email);
-
-                    const credential = await navigator.credentials.create({
-                        publicKey: {
-                            challenge,
-                            rp: {
-                                name: 'ActiveTomato',
-                                id: window.location.hostname
-                            },
-                            user: {
-                                id: userId,
-                                name: email,
-                                displayName: email.split('@')[0]
-                            },
-                            pubKeyCredParams: [
-                                { type: 'public-key', alg: -7 },  // ES256
-                                { type: 'public-key', alg: -257 } // RS256
-                            ],
-                            authenticatorSelection: {
-                                authenticatorAttachment: 'platform',
-                                userVerification: 'preferred',
-                                residentKey: 'preferred'
-                            },
-                            timeout: 60000
-                        }
-                    });
-
-                    // Store passkey data in localStorage for demo
-                    const passkeyData = {
-                        credentialId: bufferToBase64(credential.rawId),
-                        email: email,
-                        createdAt: new Date().toISOString()
-                    };
-
-                    const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
-                    existingPasskeys.push(passkeyData);
-                    localStorage.setItem('activeTomatoPasskeys', JSON.stringify(existingPasskeys));
-
-                    // Create user session
-                    onAuth({ email, id: credential.id, passkey: true });
-
-                } catch (err) {
-                    if (err.name === 'NotAllowedError') {
-                        setError('Passkey registration was cancelled');
-                    } else {
-                        setError(err.message || 'Failed to create passkey');
-                    }
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const handlePasskeyLogin = async () => {
+            const handlePasskeyAuth = async () => {
                 setLoading(true);
                 setError('');
 
@@ -1575,22 +1519,43 @@
                     const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
 
                     if (existingPasskeys.length === 0) {
-                        setError('No passkeys registered. Please sign up first.');
-                        setLoading(false);
+                        // No passkeys - prompt to create one
+                        const userEmail = prompt('Enter your email to create a passkey:');
+                        if (!userEmail) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        const challenge = generateChallenge();
+                        const userId = new TextEncoder().encode(userEmail);
+
+                        const credential = await navigator.credentials.create({
+                            publicKey: {
+                                challenge,
+                                rp: { name: 'ActiveTomato', id: window.location.hostname },
+                                user: { id: userId, name: userEmail, displayName: userEmail.split('@')[0] },
+                                pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                                authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred', residentKey: 'preferred' },
+                                timeout: 60000
+                            }
+                        });
+
+                        const passkeyData = { credentialId: bufferToBase64(credential.rawId), email: userEmail, createdAt: new Date().toISOString() };
+                        localStorage.setItem('activeTomatoPasskeys', JSON.stringify([passkeyData]));
+                        onAuth({ email: userEmail, id: credential.id, passkey: true });
                         return;
                     }
 
+                    // Has passkeys - authenticate
                     const allowCredentials = existingPasskeys.map(pk => ({
                         type: 'public-key',
                         id: base64ToBuffer(pk.credentialId),
                         transports: ['internal', 'hybrid']
                     }));
 
-                    const challenge = generateChallenge();
-
                     const assertion = await navigator.credentials.get({
                         publicKey: {
-                            challenge,
+                            challenge: generateChallenge(),
                             rpId: window.location.hostname,
                             allowCredentials,
                             userVerification: 'preferred',
@@ -1598,7 +1563,6 @@
                         }
                     });
 
-                    // Find matching passkey
                     const usedCredentialId = bufferToBase64(assertion.rawId);
                     const matchedPasskey = existingPasskeys.find(pk => pk.credentialId === usedCredentialId);
 
@@ -1607,20 +1571,13 @@
                     } else {
                         setError('Passkey not recognized');
                     }
-
                 } catch (err) {
-                    if (err.name === 'NotAllowedError') {
-                        setError('Passkey authentication was cancelled');
-                    } else {
-                        setError(err.message || 'Failed to authenticate with passkey');
+                    if (err.name !== 'NotAllowedError') {
+                        setError(err.message || 'Passkey failed');
                     }
                 } finally {
                     setLoading(false);
                 }
-            };
-
-            const handleGuestMode = () => {
-                onAuth(null); // null = guest mode
             };
 
             return (
@@ -1629,21 +1586,18 @@
                     <p className="auth-subtitle">High-Definition Pomodoro Timer</p>
 
                     {passkeySupported && (
-                        <>
-                            <button
-                                className="auth-btn"
-                                onClick={handlePasskeyLogin}
-                                disabled={loading}
-                                style={{width: '100%', maxWidth: '350px'}}
-                            >
-                                {loading ? 'Authenticating...' : 'Sign in with Passkey'}
-                            </button>
-                            <div className="auth-divider">or use email</div>
-                        </>
+                        <button
+                            className="auth-btn"
+                            onClick={handlePasskeyAuth}
+                            disabled={loading}
+                            style={{width: '100%', maxWidth: '350px', marginBottom: '20px'}}
+                        >
+                            {loading ? 'Authenticating...' : 'Continue with Passkey'}
+                        </button>
                     )}
 
-                    {isSupabaseConfigured ? (
-                        <form className="auth-form" onSubmit={handleSubmit}>
+                    {isSupabaseConfigured && (
+                        <form className="auth-form" onSubmit={handleContinue}>
                             <input
                                 type="email"
                                 className="auth-input"
@@ -1655,51 +1609,28 @@
                             <input
                                 type="password"
                                 className="auth-input"
-                                placeholder="Password"
+                                placeholder="Password (min 6 characters)"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                minLength={6}
                                 required
                             />
                             {error && <div className="auth-error">{error}</div>}
                             <button type="submit" className="auth-btn" disabled={loading}>
-                                {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
+                                {loading ? 'Please wait...' : 'Continue with Email'}
                             </button>
-
-                            {passkeySupported && !isLogin && (
-                                <button
-                                    type="button"
-                                    className="auth-btn secondary"
-                                    onClick={handlePasskeyRegister}
-                                    disabled={loading || !email}
-                                >
-                                    Register with Passkey
-                                </button>
-                            )}
-                        </form>
-                    ) : (
-                        <div className="auth-form" style={{textAlign: 'center'}}>
-                            <p style={{color: '#666', fontSize: '0.8rem', marginBottom: '15px'}}>
-                                Email login requires Supabase setup.<br/>
-                                Use Passkey or Guest mode instead.
+                            <p style={{fontSize: '0.65rem', color: '#999', textAlign: 'center', marginTop: '8px'}}>
+                                New users are automatically registered
                             </p>
+                        </form>
+                    )}
+
+                    {!isSupabaseConfigured && (
+                        <div className="auth-form" style={{textAlign: 'center'}}>
+                            <p style={{fontSize: '0.8rem', color: '#666'}}>Please configure Supabase to continue</p>
                             {error && <div className="auth-error">{error}</div>}
                         </div>
                     )}
-
-                    {isSupabaseConfigured && (
-                        <p className="auth-toggle">
-                            {isLogin ? "Don't have an account? " : "Already have an account? "}
-                            <a onClick={() => setIsLogin(!isLogin)}>
-                                {isLogin ? 'Sign Up' : 'Sign In'}
-                            </a>
-                        </p>
-                    )}
-
-                    <div className="auth-divider">or</div>
-
-                    <button className="auth-btn secondary" onClick={handleGuestMode}>
-                        Continue as Guest
-                    </button>
                 </div>
             );
         }
