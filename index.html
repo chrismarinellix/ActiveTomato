@@ -1773,9 +1773,21 @@
                 if (soundEnabled && audioCtxRef.current) {
                     playClickSound(audioCtxRef.current);
                 }
-                setTimeLeft(durations[mode]);
+                const newTimeLeft = durations[mode];
+                setTimeLeft(newTimeLeft);
                 setIsRunning(false);
                 lastIntervalRef.current = 0;
+
+                // Force sync reset to other devices
+                if (user?.id) {
+                    saveTimerState(user.id, {
+                        isRunning: false,
+                        mode,
+                        timeLeft: newTimeLeft,
+                        seriesTarget,
+                        seriesProgress
+                    });
+                }
             };
 
             // Sync timer state to Supabase when key values change
