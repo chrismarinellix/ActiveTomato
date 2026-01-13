@@ -1622,42 +1622,29 @@
                         setDataLoaded(true);
                     });
 
-                    // Subscribe to realtime timer updates
+                    // Subscribe to realtime timer updates (wall-display pattern)
                     if (supabase) {
-                        const handleTimerUpdate = (payload) => {
-                            console.log('Realtime event received:', payload.eventType, payload);
-                            const data = payload.new;
-                            if (!data) {
-                                console.log('No data in payload');
-                                return;
-                            }
-
-                            // Calculate current time if running
-                            let newTimeLeft = data.time_left;
-                            if (data.is_running && data.started_at) {
-                                const elapsed = Math.floor((Date.now() - new Date(data.started_at).getTime()) / 1000);
-                                newTimeLeft = Math.max(0, data.time_left - elapsed);
-                            }
-
-                            // Update local state
-                            syncingFromRemoteRef.current = true;
-                            setMode(data.mode);
-                            setTimeLeft(newTimeLeft);
-                            setIsRunning(data.is_running && newTimeLeft > 0);
-                            setSeriesTarget(data.series_target);
-                            setSeriesProgress(data.series_progress);
-                            console.log('Timer synced from remote:', data.is_running ? 'running' : 'paused', 'timeLeft:', newTimeLeft);
-                            setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
-                        };
-
                         const channel = supabase
-                            .channel('timer-sync')
+                            .channel('timer-changes')
                             .on('postgres_changes', {
                                 event: '*',
                                 schema: 'public',
-                                table: 'timer_state',
-                                filter: `user_id=eq.${user.id}`
-                            }, handleTimerUpdate)
+                                table: 'timer_state'
+                            }, async () => {
+                                // Refetch timer state when any change happens
+                                console.log('Realtime: timer_state changed, refetching...');
+                                const state = await loadTimerState(user.id);
+                                if (state) {
+                                    syncingFromRemoteRef.current = true;
+                                    setMode(state.mode);
+                                    setTimeLeft(state.timeLeft);
+                                    setIsRunning(state.isRunning);
+                                    setSeriesTarget(state.seriesTarget);
+                                    setSeriesProgress(state.seriesProgress);
+                                    console.log('Timer synced from remote:', state.isRunning ? 'running' : 'paused');
+                                    setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                                }
+                            })
                             .subscribe((status) => {
                                 console.log('Realtime subscription status:', status);
                                 if (status === 'SUBSCRIBED') {
