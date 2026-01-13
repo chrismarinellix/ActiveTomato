@@ -466,6 +466,37 @@
             color: #888;
         }
 
+        /* Tick style selector */
+        .tick-style-selector {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            padding-left: 48px;
+        }
+
+        .tick-style-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 2px;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            text-transform: capitalize;
+            transition: all 0.15s ease;
+        }
+
+        .tick-style-btn:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .tick-style-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
         /* Activity Section */
         .activity-section {
             margin-top: auto;
@@ -929,18 +960,97 @@
             });
         };
 
-        const playTickSound = (audioCtx) => {
+        const playStartSound = (audioCtx) => {
             if (!audioCtx) return;
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = 180;
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.012, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.015);
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 0.015);
+            // Ascending tones - energizing start
+            [330, 440, 550].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.1);
+                }, i * 80);
+            });
+        };
+
+        const playPauseSound = (audioCtx) => {
+            if (!audioCtx) return;
+            // Descending tone - gentle pause
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 400;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        };
+
+        // Tick sound styles
+        const tickStyles = {
+            soft: (audioCtx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = 200;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.02);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.02);
+            },
+            click: (audioCtx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = 800;
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.008);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.008);
+            },
+            pulse: (audioCtx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = 60;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.03);
+            },
+            woodblock: (audioCtx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = 1200;
+                osc.type = 'triangle';
+                gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.012);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.012);
+            }
+        };
+
+        const playTickSound = (audioCtx, style = 'soft') => {
+            if (!audioCtx) return;
+            if (tickStyles[style]) {
+                tickStyles[style](audioCtx);
+            }
         };
 
         function ActiveTomato({ user, onLogout }) {
@@ -975,6 +1085,7 @@
             const [soundEnabled, setSoundEnabled] = useState(true);
             const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(true);
             const [tickSoundEnabled, setTickSoundEnabled] = useState(false);
+            const [tickStyle, setTickStyle] = useState('soft');
 
             // Reminder & Auto-start
             const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -1045,6 +1156,9 @@
                 initAudio();
                 if (!isRunning) {
                     addLogEntry(`Started ${modeLabels[mode]}`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playStartSound(audioCtxRef.current);
+                    }
                 }
                 setIsRunning(true);
             };
@@ -1053,6 +1167,13 @@
                 initAudio();
                 if (!isRunning) {
                     addLogEntry(`Started ${modeLabels[mode]}`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playStartSound(audioCtxRef.current);
+                    }
+                } else {
+                    if (soundEnabled && audioCtxRef.current) {
+                        playPauseSound(audioCtxRef.current);
+                    }
                 }
                 setIsRunning(!isRunning);
             };
@@ -1190,7 +1311,7 @@
                             const newTime = prev - 1;
 
                             if (tickSoundEnabled && audioCtxRef.current) {
-                                playTickSound(audioCtxRef.current);
+                                playTickSound(audioCtxRef.current, tickStyle);
                             }
 
                             if (intervalSoundEnabled && audioCtxRef.current && mode === 'work') {
@@ -1214,7 +1335,7 @@
                 }
 
                 return () => clearInterval(interval);
-            }, [isRunning, timeLeft, mode, intervalSoundEnabled, soundEnabled, tickSoundEnabled, completeSession]);
+            }, [isRunning, timeLeft, mode, intervalSoundEnabled, soundEnabled, tickSoundEnabled, tickStyle, completeSession]);
 
             const progress = ((durations[mode] - timeLeft) / durations[mode]) * 100;
             const isWarning = timeLeft <= 60 && isRunning;
@@ -1369,6 +1490,23 @@
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
                                             <label>Countdown Tick</label>
                                         </div>
+                                        {tickSoundEnabled && (
+                                            <div className="tick-style-selector">
+                                                {['soft', 'click', 'pulse', 'woodblock'].map(style => (
+                                                    <button
+                                                        key={style}
+                                                        className={`tick-style-btn ${tickStyle === style ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            initAudio();
+                                                            setTickStyle(style);
+                                                            playTickSound(audioCtxRef.current, style);
+                                                        }}
+                                                    >
+                                                        {style}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="toggle-group">
