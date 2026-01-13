@@ -1434,6 +1434,31 @@
             );
         }
 
+        // WebAuthn/Passkey helpers
+        const isPasskeySupported = () => {
+            return window.PublicKeyCredential !== undefined &&
+                   typeof window.PublicKeyCredential === 'function';
+        };
+
+        const generateChallenge = () => {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return array;
+        };
+
+        const bufferToBase64 = (buffer) => {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        };
+
+        const base64ToBuffer = (base64) => {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
         // Auth Component
         function AuthScreen({ onAuth }) {
             const [isLogin, setIsLogin] = useState(true);
@@ -1441,6 +1466,11 @@
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(false);
+            const [passkeySupported, setPasskeySupported] = useState(false);
+
+            useEffect(() => {
+                setPasskeySupported(isPasskeySupported());
+            }, []);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
@@ -1472,6 +1502,121 @@
                 }
             };
 
+            const handlePasskeyRegister = async () => {
+                if (!email) {
+                    setError('Please enter your email first');
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                try {
+                    const challenge = generateChallenge();
+                    const userId = new TextEncoder().encode(email);
+
+                    const credential = await navigator.credentials.create({
+                        publicKey: {
+                            challenge,
+                            rp: {
+                                name: 'ActiveTomato',
+                                id: window.location.hostname
+                            },
+                            user: {
+                                id: userId,
+                                name: email,
+                                displayName: email.split('@')[0]
+                            },
+                            pubKeyCredParams: [
+                                { type: 'public-key', alg: -7 },  // ES256
+                                { type: 'public-key', alg: -257 } // RS256
+                            ],
+                            authenticatorSelection: {
+                                authenticatorAttachment: 'platform',
+                                userVerification: 'preferred',
+                                residentKey: 'preferred'
+                            },
+                            timeout: 60000
+                        }
+                    });
+
+                    // Store passkey data in localStorage for demo
+                    const passkeyData = {
+                        credentialId: bufferToBase64(credential.rawId),
+                        email: email,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
+                    existingPasskeys.push(passkeyData);
+                    localStorage.setItem('activeTomatoPasskeys', JSON.stringify(existingPasskeys));
+
+                    // Create user session
+                    onAuth({ email, id: credential.id, passkey: true });
+
+                } catch (err) {
+                    if (err.name === 'NotAllowedError') {
+                        setError('Passkey registration was cancelled');
+                    } else {
+                        setError(err.message || 'Failed to create passkey');
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handlePasskeyLogin = async () => {
+                setLoading(true);
+                setError('');
+
+                try {
+                    const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
+
+                    if (existingPasskeys.length === 0) {
+                        setError('No passkeys registered. Please sign up first.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    const allowCredentials = existingPasskeys.map(pk => ({
+                        type: 'public-key',
+                        id: base64ToBuffer(pk.credentialId),
+                        transports: ['internal', 'hybrid']
+                    }));
+
+                    const challenge = generateChallenge();
+
+                    const assertion = await navigator.credentials.get({
+                        publicKey: {
+                            challenge,
+                            rpId: window.location.hostname,
+                            allowCredentials,
+                            userVerification: 'preferred',
+                            timeout: 60000
+                        }
+                    });
+
+                    // Find matching passkey
+                    const usedCredentialId = bufferToBase64(assertion.rawId);
+                    const matchedPasskey = existingPasskeys.find(pk => pk.credentialId === usedCredentialId);
+
+                    if (matchedPasskey) {
+                        onAuth({ email: matchedPasskey.email, id: assertion.id, passkey: true });
+                    } else {
+                        setError('Passkey not recognized');
+                    }
+
+                } catch (err) {
+                    if (err.name === 'NotAllowedError') {
+                        setError('Passkey authentication was cancelled');
+                    } else {
+                        setError(err.message || 'Failed to authenticate with passkey');
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             const handleGuestMode = () => {
                 onAuth(null); // null = guest mode
             };
@@ -1480,6 +1625,20 @@
                 <div className="auth-container">
                     <h1 className="auth-title">ACTIVETOMATO</h1>
                     <p className="auth-subtitle">High-Definition Pomodoro Timer</p>
+
+                    {passkeySupported && (
+                        <>
+                            <button
+                                className="auth-btn"
+                                onClick={handlePasskeyLogin}
+                                disabled={loading}
+                                style={{width: '100%', maxWidth: '350px'}}
+                            >
+                                {loading ? 'Authenticating...' : 'Sign in with Passkey'}
+                            </button>
+                            <div className="auth-divider">or use email</div>
+                        </>
+                    )}
 
                     <form className="auth-form" onSubmit={handleSubmit}>
                         <input
@@ -1502,6 +1661,17 @@
                         <button type="submit" className="auth-btn" disabled={loading}>
                             {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Sign Up')}
                         </button>
+
+                        {passkeySupported && !isLogin && (
+                            <button
+                                type="button"
+                                className="auth-btn secondary"
+                                onClick={handlePasskeyRegister}
+                                disabled={loading || !email}
+                            >
+                                Register with Passkey
+                            </button>
+                        )}
                     </form>
 
                     <p className="auth-toggle">
