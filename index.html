@@ -962,8 +962,23 @@
 
         const playStartSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Ascending tones - energizing start
-            [330, 440, 550].forEach((freq, i) => {
+            // Rich startup sequence - 2.5 seconds of building energy
+            const now = audioCtx.currentTime;
+
+            // Initial warm-up pulse
+            const pulseOsc = audioCtx.createOscillator();
+            const pulseGain = audioCtx.createGain();
+            pulseOsc.connect(pulseGain);
+            pulseGain.connect(audioCtx.destination);
+            pulseOsc.frequency.value = 80;
+            pulseOsc.type = 'sine';
+            pulseGain.gain.setValueAtTime(0.15, now);
+            pulseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+            pulseOsc.start(now);
+            pulseOsc.stop(now + 0.8);
+
+            // Rising tone sequence
+            [220, 330, 440, 550, 660].forEach((freq, i) => {
                 setTimeout(() => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -971,27 +986,94 @@
                     gain.connect(audioCtx.destination);
                     osc.frequency.value = freq;
                     osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
                     osc.start(audioCtx.currentTime);
-                    osc.stop(audioCtx.currentTime + 0.1);
-                }, i * 80);
+                    osc.stop(audioCtx.currentTime + 0.25);
+                }, 300 + i * 200);
             });
+
+            // Final confirmation chime
+            setTimeout(() => {
+                [880, 1100, 880].forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.15);
+                    }, i * 100);
+                });
+            }, 1500);
         };
 
         const playPauseSound = (audioCtx) => {
             if (!audioCtx) return;
-            // Descending tone - gentle pause
+            // Descending wind-down - clear pause indication
+            [500, 400, 300, 200].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.15);
+                }, i * 120);
+            });
+        };
+
+        const playClickSound = (audioCtx) => {
+            if (!audioCtx) return;
+            // Quick tactile click for buttons
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            osc.frequency.value = 400;
-            osc.type = 'sine';
-            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.frequency.value = 600;
+            osc.type = 'square';
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.02);
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.02);
+        };
+
+        const playModeChangeSound = (audioCtx) => {
+            if (!audioCtx) return;
+            // Soft mode transition
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 440;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.1);
+        };
+
+        const playToggleSound = (audioCtx, on) => {
+            if (!audioCtx) return;
+            // Toggle on/off feedback
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = on ? 800 : 400;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.05);
         };
 
         // Tick sound styles
@@ -1139,6 +1221,10 @@
             };
 
             const handleModeChange = (newMode) => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playModeChangeSound(audioCtxRef.current);
+                }
                 setMode(newMode);
                 setTimeLeft(durations[newMode]);
                 setIsRunning(false);
@@ -1146,6 +1232,10 @@
             };
 
             const handleSeriesSelect = (target) => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playClickSound(audioCtxRef.current);
+                }
                 setSeriesTarget(target);
                 setSeriesProgress(0);
                 setSeriesPhase('work');
@@ -1179,6 +1269,10 @@
             };
 
             const resetTimer = () => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playClickSound(audioCtxRef.current);
+                }
                 setTimeLeft(durations[mode]);
                 setIsRunning(false);
                 lastIntervalRef.current = 0;
@@ -1478,15 +1572,15 @@
                                 <div className="toggle-panels">
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Audio Cues</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); setSoundEnabled(!soundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !soundEnabled); setSoundEnabled(!soundEnabled); }}>
                                             <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
                                             <label>Completion Sound</label>
                                         </div>
-                                        <div className="toggle-item tooltip" data-tooltip="Beep every 5 minutes: 1 beep at 5min, 2 at 10min, etc." onClick={() => { initAudio(); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Beep every 5 minutes: 1 beep at 5min, 2 at 10min, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
                                             <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
                                             <label>Progress Beeps</label>
                                         </div>
-                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); setTickSoundEnabled(!tickSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !tickSoundEnabled); setTickSoundEnabled(!tickSoundEnabled); }}>
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
                                             <label>Countdown Tick</label>
                                         </div>
@@ -1511,7 +1605,7 @@
 
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Nudge Me</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); setReminderEnabled(!reminderEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !reminderEnabled); setReminderEnabled(!reminderEnabled); }}>
                                             <div className={`toggle-switch ${reminderEnabled ? 'on' : ''}`} />
                                             <label>Remind to Focus</label>
                                         </div>
@@ -1521,7 +1615,7 @@
                                                 <select
                                                     className="reminder-select"
                                                     value={reminderInterval}
-                                                    onChange={(e) => setReminderInterval(parseInt(e.target.value))}
+                                                    onChange={(e) => { initAudio(); playClickSound(audioCtxRef.current); setReminderInterval(parseInt(e.target.value)); }}
                                                 >
                                                     <option value={5}>5 min</option>
                                                     <option value={10}>10 min</option>
@@ -1531,7 +1625,7 @@
                                                 </select>
                                             </div>
                                         )}
-                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => setAutoStartEnabled(!autoStartEnabled)}>
+                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !autoStartEnabled); setAutoStartEnabled(!autoStartEnabled); }}>
                                             <div className={`toggle-switch ${autoStartEnabled ? 'on' : ''}`} />
                                             <label>Auto-Start</label>
                                         </div>
@@ -1539,7 +1633,7 @@
 
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Batch Mode</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => setAutoSeriesEnabled(!autoSeriesEnabled)}>
+                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !autoSeriesEnabled); setAutoSeriesEnabled(!autoSeriesEnabled); }}>
                                             <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
                                             <label>Chain Sessions</label>
                                         </div>
