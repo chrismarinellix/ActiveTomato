@@ -1622,39 +1622,33 @@
                         setDataLoaded(true);
                     });
 
-                    // Subscribe to realtime timer updates (wall-display pattern)
+                    // Subscribe to realtime timer updates (exact wall-display pattern)
                     if (supabase) {
                         const channel = supabase
                             .channel('timer-changes')
-                            .on('postgres_changes', {
-                                event: '*',
-                                schema: 'public',
-                                table: 'timer_state'
-                            }, async () => {
-                                // Refetch timer state when any change happens
-                                console.log('Realtime: timer_state changed, refetching...');
-                                const state = await loadTimerState(user.id);
-                                if (state) {
-                                    syncingFromRemoteRef.current = true;
-                                    setMode(state.mode);
-                                    setTimeLeft(state.timeLeft);
-                                    setIsRunning(state.isRunning);
-                                    setSeriesTarget(state.seriesTarget);
-                                    setSeriesProgress(state.seriesProgress);
-                                    console.log('Timer synced from remote:', state.isRunning ? 'running' : 'paused');
-                                    setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                            .on(
+                                'postgres_changes',
+                                { event: '*', schema: 'public', table: 'timer_state' },
+                                async () => {
+                                    // Refetch timer state when any change happens
+                                    console.log('Realtime: timer_state changed, refetching...');
+                                    const state = await loadTimerState(user.id);
+                                    if (state) {
+                                        syncingFromRemoteRef.current = true;
+                                        setMode(state.mode);
+                                        setTimeLeft(state.timeLeft);
+                                        setIsRunning(state.isRunning);
+                                        setSeriesTarget(state.seriesTarget);
+                                        setSeriesProgress(state.seriesProgress);
+                                        console.log('Timer synced from remote:', state.isRunning ? 'running' : 'paused');
+                                        setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                                    }
                                 }
-                            })
-                            .subscribe((status) => {
-                                console.log('Realtime subscription status:', status);
-                                if (status === 'SUBSCRIBED') {
-                                    setSyncStatus('connected');
-                                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-                                    setSyncStatus('error');
-                                }
-                            });
+                            )
+                            .subscribe();
 
                         realtimeChannelRef.current = channel;
+                        setSyncStatus('connected');
                     }
                 }
 
