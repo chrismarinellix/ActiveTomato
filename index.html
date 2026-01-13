@@ -10,154 +10,132 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        /* ==========================================
+           MOBILE-FIRST CSS
+           Base styles = mobile, desktop via min-width
+           ========================================== */
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* BASE: Mobile - fixed viewport, no scroll */
         html, body {
             height: 100%;
+            height: 100dvh;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
 
         body {
             font-family: 'IBM Plex Mono', monospace;
-            background: #0f0f0f;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: #f5f5f0;
         }
 
         .container {
             width: 100%;
-            height: 100vh;
+            height: 100dvh;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 15px;
+            overflow: hidden;
         }
 
-        /* Modern E-Ink Display - Kindle Paperwhite / Boox style */
+        /* BASE: Simple full-screen for mobile */
         .eink-screen {
             background: #f5f5f0;
-            border-radius: 3px;
-            padding: 35px 50px;
             width: 100%;
-            max-width: 1400px;
-            height: 95vh;
-            box-shadow:
-                0 0 0 1px rgba(0,0,0,0.08),
-                0 25px 80px rgba(0,0,0,0.5),
-                0 0 0 8px #1a1a1a,
-                0 0 0 10px #0a0a0a;
-            position: relative;
+            height: 100%;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        /* Subtle paper texture */
         .eink-screen::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background:
-                radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
-            pointer-events: none;
+            display: none;
         }
 
         .screen-content {
-            position: relative;
-            z-index: 1;
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow: hidden;
+            min-height: 0;
         }
 
-        /* Header */
+        /* BASE: Compact header for mobile */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 20px;
+            padding-bottom: 8px;
             border-bottom: 1px solid rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            flex-shrink: 0;
         }
 
         .header-left h1 {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 1.6rem;
+            font-size: 0.85rem;
             font-weight: 600;
             color: #1a1a1a;
-            letter-spacing: 4px;
+            letter-spacing: 2px;
         }
 
         .header-left .subtitle {
-            font-size: 0.7rem;
-            color: #888;
-            margin-top: 4px;
-            letter-spacing: 1px;
+            display: none;
         }
 
         .header-right {
             display: flex;
-            gap: 25px;
+            gap: 12px;
         }
 
+        /* BASE: Compact stats for mobile */
         .stat-box {
             text-align: right;
         }
 
         .stat-label {
-            font-size: 0.6rem;
+            font-size: 0.45rem;
             color: #999;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .stat-value {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 1.4rem;
+            font-size: 0.9rem;
             font-weight: 600;
             color: #1a1a1a;
         }
 
         .level-badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 3px 8px;
             background: #1a1a1a;
             color: #f5f5f0;
-            font-size: 0.65rem;
+            font-size: 0.5rem;
             font-weight: 500;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             border-radius: 2px;
         }
 
-        /* Main content area */
+        /* BASE: Main content fills available space */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 20px 0;
+            padding: 8px 0;
+            min-height: 0;
         }
 
-        /* Series selector */
+        /* BASE: Hide series selector on mobile */
         .series-selector {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 25px;
-            padding: 12px 20px;
-            background: rgba(0,0,0,0.03);
-            border-radius: 3px;
+            display: none;
         }
 
         .series-label {
@@ -232,27 +210,28 @@
             background: #666;
         }
 
-        /* Mode tabs */
+        /* BASE: Compact mode tabs for mobile */
         .mode-tabs {
             display: flex;
             gap: 0;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             border: 1px solid rgba(0,0,0,0.15);
             border-radius: 3px;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .mode-tab {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.75rem;
+            font-size: 0.55rem;
             font-weight: 500;
-            padding: 12px 30px;
+            padding: 8px 12px;
             border: none;
             background: transparent;
             color: #666;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             transition: all 0.15s ease;
             border-right: 1px solid rgba(0,0,0,0.1);
         }
@@ -270,27 +249,32 @@
             background: rgba(0,0,0,0.04);
         }
 
-        /* Timer Display - High Definition */
+        /* BASE: Timer - sized for mobile */
         .timer-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            margin: 20px 0;
+            min-height: 0;
         }
 
         .timer-label {
-            font-size: 0.8rem;
+            font-size: 0.6rem;
             color: #888;
             text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-bottom: 15px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
         }
 
         .timer-digits {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 16rem;
+            font-size: 18vw;
             font-weight: 700;
             color: #0a0a0a;
-            letter-spacing: -5px;
-            line-height: 0.85;
+            letter-spacing: -2px;
+            line-height: 1;
             text-rendering: geometricPrecision;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -311,12 +295,12 @@
         }
 
         .timer-progress {
-            width: 100%;
-            max-width: 600px;
-            height: 4px;
+            width: 80%;
+            max-width: 300px;
+            height: 3px;
             background: rgba(0,0,0,0.08);
             border-radius: 2px;
-            margin: 30px auto 0;
+            margin-top: 12px;
             overflow: hidden;
         }
 
@@ -327,33 +311,36 @@
         }
 
         .interval-indicator {
-            margin-top: 15px;
-            font-size: 0.75rem;
+            margin-top: 8px;
+            font-size: 0.55rem;
             color: #999;
             letter-spacing: 1px;
         }
 
-        /* Controls */
+        /* BASE: Controls sized for mobile */
         .controls {
             display: flex;
             justify-content: center;
-            gap: 15px;
-            margin: 30px 0;
+            gap: 12px;
+            margin: 12px 0;
+            flex-shrink: 0;
         }
 
         .btn {
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             font-weight: 500;
-            padding: 14px 45px;
+            padding: 14px 24px;
             border: 1px solid #1a1a1a;
             background: transparent;
             color: #1a1a1a;
             cursor: pointer;
             border-radius: 2px;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
             transition: all 0.15s ease;
+            min-height: 48px;
+            touch-action: manipulation;
         }
 
         .btn:hover {
@@ -369,16 +356,9 @@
             background: #2a2a2a;
         }
 
-        /* Toggle panels */
+        /* BASE: Hide toggle panels on mobile */
         .toggle-panels {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin: 20px 0;
-            padding: 20px 30px;
-            background: rgba(0,0,0,0.02);
-            border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.05);
+            display: none;
         }
 
         .toggle-group {
@@ -507,10 +487,9 @@
         }
 
         /* Activity Section */
+        /* BASE: Hide activity section on mobile */
         .activity-section {
-            margin-top: auto;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.08);
+            display: none;
         }
 
         .activity-header {
@@ -894,115 +873,182 @@
             max-height: 60px;
         }
 
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .timer-digits { font-size: 12rem; }
-        }
-
-        @media (max-width: 900px) {
-            .timer-digits { font-size: 9rem; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
-            .header-right { justify-content: center; }
-            .toggle-panels { flex-wrap: wrap; gap: 20px; justify-content: center; }
-            .series-selector { flex-wrap: wrap; justify-content: center; }
-        }
-
-        /* Mobile: Fixed viewport, no scrolling */
-        @media (max-width: 600px) {
+        /* ==========================================
+           DESKTOP ENHANCEMENTS (min-width: 601px)
+           ========================================== */
+        @media (min-width: 601px) {
             html, body {
-                height: 100%;
-                height: 100dvh;
-                overflow: hidden;
-                position: fixed;
-                width: 100%;
+                position: static;
+                overflow: auto;
             }
-            .container {
-                padding: 0;
-                height: 100dvh;
-                overflow: hidden;
-            }
-            .eink-screen {
-                padding: 12px;
-                height: 100%;
-                border-radius: 0;
-                box-shadow: none;
+
+            body {
+                background: #0f0f0f;
                 display: flex;
-                flex-direction: column;
-            }
-            .eink-screen::before { display: none; }
-            .screen-content {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            /* Minimal header */
-            .header {
-                flex-shrink: 0;
-                padding-bottom: 8px;
-                margin-bottom: 0;
-            }
-            .header-left h1 { font-size: 0.75rem; }
-            .header-left .subtitle { display: none; }
-            .logout-btn { font-size: 0.5rem !important; padding: 3px 6px !important; }
-            .header-right { gap: 12px; }
-            .stat-box { gap: 2px; }
-            .stat-value { font-size: 0.8rem; }
-            .stat-label { font-size: 0.4rem; }
-            .level-badge { font-size: 0.5rem; padding: 3px 8px; }
-            /* Main content fills remaining space */
-            .main-content {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                padding: 0;
-                overflow: hidden;
-            }
-            /* Hide non-essential on mobile */
-            .series-selector { display: none; }
-            .toggle-panels { display: none; }
-            .activity-section { display: none; }
-            /* Mode tabs - compact */
-            .mode-tabs {
-                flex-shrink: 0;
-                margin-bottom: 8px;
-            }
-            .mode-tab { padding: 8px 12px; font-size: 0.55rem; }
-            /* Timer - centered and sized to fit */
-            .timer-display {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
                 justify-content: center;
                 align-items: center;
-                min-height: 0;
             }
-            .timer-digits {
-                font-size: 20vw;
-                line-height: 1;
-                letter-spacing: -2px;
+
+            .container {
+                padding: 15px;
+                justify-content: center;
+                align-items: center;
             }
-            .timer-label {
+
+            .eink-screen {
+                border-radius: 3px;
+                padding: 35px 50px;
+                max-width: 1400px;
+                height: 95vh;
+                box-shadow:
+                    0 0 0 1px rgba(0,0,0,0.08),
+                    0 25px 80px rgba(0,0,0,0.5),
+                    0 0 0 8px #1a1a1a,
+                    0 0 0 10px #0a0a0a;
+            }
+
+            .eink-screen::before {
+                display: block;
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
+                pointer-events: none;
+            }
+
+            .screen-content {
+                overflow-y: auto;
+            }
+
+            .header {
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+
+            .header-left h1 {
+                font-size: 1.6rem;
+                letter-spacing: 4px;
+            }
+
+            .header-left .subtitle {
+                display: block;
+                font-size: 0.7rem;
+                color: #888;
+                margin-top: 4px;
+                letter-spacing: 1px;
+            }
+
+            .header-right {
+                gap: 25px;
+            }
+
+            .stat-label {
                 font-size: 0.6rem;
-                margin-top: 8px;
+                letter-spacing: 1px;
             }
-            .timer-progress {
-                width: 80%;
-                margin-top: 12px;
+
+            .stat-value {
+                font-size: 1.4rem;
             }
-            /* Buttons - fixed at bottom, always visible */
-            .controls {
-                flex-shrink: 0;
-                gap: 12px;
-                padding: 12px 0;
-                margin: 0;
+
+            .level-badge {
+                padding: 4px 12px;
+                font-size: 0.65rem;
+                letter-spacing: 1px;
             }
-            .btn {
-                padding: 14px 28px;
+
+            .main-content {
+                padding: 20px 0;
+            }
+
+            /* Show series selector on desktop */
+            .series-selector {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 25px;
+                padding: 12px 20px;
+                background: rgba(0,0,0,0.03);
+                border-radius: 3px;
+            }
+
+            .mode-tabs {
+                margin-bottom: 30px;
+            }
+
+            .mode-tab {
                 font-size: 0.75rem;
-                min-height: 48px;
-                touch-action: manipulation;
+                padding: 12px 30px;
+                letter-spacing: 2px;
+            }
+
+            .timer-display {
+                flex: none;
+                margin: 20px 0;
+            }
+
+            .timer-label {
+                font-size: 0.8rem;
+                letter-spacing: 3px;
+                margin-bottom: 15px;
+            }
+
+            .timer-digits {
+                font-size: 12rem;
+                letter-spacing: -5px;
+                line-height: 0.85;
+            }
+
+            .timer-progress {
+                max-width: 600px;
+                height: 4px;
+                margin-top: 30px;
+            }
+
+            .interval-indicator {
+                margin-top: 15px;
+                font-size: 0.75rem;
+            }
+
+            .controls {
+                gap: 15px;
+                margin: 30px 0;
+            }
+
+            .btn {
+                font-size: 0.85rem;
+                padding: 14px 45px;
+                letter-spacing: 3px;
+            }
+
+            /* Show toggle panels on desktop */
+            .toggle-panels {
+                display: flex;
+                justify-content: center;
+                gap: 40px;
+                margin: 20px 0;
+                padding: 20px 30px;
+                background: rgba(0,0,0,0.02);
+                border-radius: 3px;
+                border: 1px solid rgba(0,0,0,0.05);
+            }
+
+            /* Show activity section on desktop */
+            .activity-section {
+                display: block;
+                margin-top: auto;
+                padding-top: 20px;
+                border-top: 1px solid rgba(0,0,0,0.08);
+            }
+        }
+
+        /* Large desktop enhancements */
+        @media (min-width: 1201px) {
+            .timer-digits {
+                font-size: 16rem;
             }
         }
     </style>
