@@ -5,3 +5,7 @@ node_modules/
 
 # Local Netlify folder
 .netlify
+
+# Tauri build artifacts
+src-tauri/target/
+package-lock.json

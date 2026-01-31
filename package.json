@@ -1,0 +1,16 @@
+{
+  "name": "activetomato",
+  "version": "1.0.0",
+  "description": "High-Definition Pomodoro Timer Widget",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

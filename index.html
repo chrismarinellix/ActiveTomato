@@ -8,6 +8,15 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -30,11 +39,29 @@
 
         body {
             font-family: 'IBM Plex Mono', monospace;
-            background: #0f0f0f;
+            background: linear-gradient(135deg, #0a0a0a 0%, #151515 50%, #0a0a0a 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+        }
+
+        /* Tauri frameless window - draggable area */
+        body.tauri-app {
+            -webkit-app-region: drag;
+            background: #f5f5f0;
+        }
+        body.tauri-app .eink-screen {
+            max-width: 100%;
+            height: 100vh;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        body.tauri-app .container {
+            padding: 0;
+        }
+        body.tauri-app button, body.tauri-app input, body.tauri-app select, body.tauri-app a {
+            -webkit-app-region: no-drag;
         }
 
         .container {
@@ -277,6 +304,7 @@
         .mode-tab.active {
             background: #1a1a1a;
             color: #f5f5f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .mode-tab:hover:not(.active) {
@@ -321,6 +349,16 @@
         @keyframes pulse {
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        @keyframes subtleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(100, 100, 100, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(100, 100, 100, 0.2); }
         }
 
         .timer-progress {
@@ -376,10 +414,17 @@
         .btn.primary {
             background: #1a1a1a;
             color: #f5f5f0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         .btn.primary:hover {
             background: #2a2a2a;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn.primary:active {
+            transform: translateY(0);
         }
 
         /* Toggle panels */
@@ -389,9 +434,12 @@
             gap: 40px;
             margin: 20px 0;
             padding: 20px 30px;
-            background: rgba(0,0,0,0.02);
-            border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.05);
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
 
         .toggle-group {
@@ -1072,9 +1120,253 @@
             .header-right { flex-wrap: wrap; gap: 10px; }
             .stat-box { min-width: 60px; }
         }
+
+        /* WebGL Background Canvas */
+        #webgl-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Glassmorphism Enhancements */
+        .eink-screen {
+            background: rgba(245, 245, 240, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.05),
+                0 25px 80px rgba(0,0,0,0.4),
+                0 0 0 8px rgba(26,26,26,0.9),
+                0 0 0 10px rgba(10,10,10,0.95),
+                inset 0 0 80px rgba(255,255,255,0.1);
+        }
+
+        /* Timer Orb Container */
+        .timer-orb-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #timer-orb-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        .timer-orb-overlay {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .timer-orb-overlay .timer-digits {
+            font-size: 4rem;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .timer-orb-overlay .timer-label {
+            font-size: 0.7rem;
+            margin-bottom: 8px;
+        }
+
+        /* Ambient Sound Controls */
+        .ambient-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .ambient-label {
+            font-size: 0.65rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 60px;
+        }
+
+        .ambient-slider-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ambient-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .ambient-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .ambient-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        .ambient-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .ambient-volume-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: #555;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .ambient-mode-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .ambient-mode-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            padding: 5px 10px;
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 3px;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: capitalize;
+        }
+
+        .ambient-mode-btn:hover {
+            background: rgba(0,0,0,0.04);
+        }
+
+        .ambient-mode-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
+        /* Glow effects for running timer */
+        .timer-orb-container.running #timer-orb-canvas {
+            filter: drop-shadow(0 0 30px rgba(100, 100, 100, 0.3));
+        }
+
+        .timer-orb-container.paused #timer-orb-canvas {
+            filter: drop-shadow(0 0 15px rgba(100, 100, 100, 0.15));
+        }
+
+        /* Enhanced button transitions */
+        .btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        /* Responsive adjustments for orb */
+        @media (max-width: 900px) {
+            .timer-orb-container {
+                width: 220px;
+                height: 220px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 3.2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .timer-orb-container {
+                width: 180px;
+                height: 180px;
+                margin-bottom: 15px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 2.5rem;
+            }
+            .timer-orb-overlay .timer-label {
+                font-size: 0.6rem;
+            }
+            .ambient-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .ambient-slider-container {
+                order: 2;
+            }
+            .ambient-mode-buttons {
+                order: 1;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .timer-orb-container {
+                width: 150px;
+                height: 150px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 2rem;
+            }
+        }
     </style>
 </head>
 <body>
+    <canvas id="webgl-bg"></canvas>
     <div id="root"></div>
 
     <script type="text/babel">
@@ -1090,18 +1382,604 @@
         // Initialize Supabase client only if configured
         const supabase = (window.supabase && isSupabaseConfigured) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
+        // ============================================
+        // WebGPU/WebGL Background - Particle Field
+        // ============================================
+        const isWebGPUSupported = () => {
+            return 'gpu' in navigator;
+        };
+
+        // Native WebGPU Particle System
+        const initWebGPUParticles = async (canvas) => {
+            if (!navigator.gpu) return null;
+
+            try {
+                const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+                if (!adapter) return null;
+
+                const device = await adapter.requestDevice();
+                const context = canvas.getContext('webgpu');
+                const format = navigator.gpu.getPreferredCanvasFormat();
+
+                context.configure({
+                    device,
+                    format,
+                    alphaMode: 'premultiplied',
+                });
+
+                const particleCount = 1000;
+                const particleData = new Float32Array(particleCount * 4); // x, y, z, size
+                const velocityData = new Float32Array(particleCount * 3);
+
+                for (let i = 0; i < particleCount; i++) {
+                    particleData[i * 4] = (Math.random() - 0.5) * 2;
+                    particleData[i * 4 + 1] = (Math.random() - 0.5) * 2;
+                    particleData[i * 4 + 2] = Math.random() * 0.5;
+                    particleData[i * 4 + 3] = Math.random() * 0.003 + 0.001;
+                    velocityData[i * 3] = (Math.random() - 0.5) * 0.0005;
+                    velocityData[i * 3 + 1] = (Math.random() - 0.5) * 0.0005;
+                    velocityData[i * 3 + 2] = 0;
+                }
+
+                const particleBuffer = device.createBuffer({
+                    size: particleData.byteLength,
+                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                });
+                device.queue.writeBuffer(particleBuffer, 0, particleData);
+
+                const shaderCode = `
+                    struct Uniforms {
+                        time: f32,
+                        running: f32,
+                        aspect: f32,
+                    }
+                    @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+                    struct VertexOutput {
+                        @builtin(position) position: vec4f,
+                        @location(0) alpha: f32,
+                    }
+
+                    @vertex
+                    fn vertexMain(@location(0) pos: vec4f) -> VertexOutput {
+                        var output: VertexOutput;
+                        let pulse = sin(uniforms.time * 0.5 + pos.x * 10.0) * 0.1 + 1.0;
+                        let size = pos.w * pulse * (1.0 + uniforms.running * 0.5);
+
+                        output.position = vec4f(
+                            pos.x / uniforms.aspect + sin(uniforms.time * 0.2 + pos.y * 5.0) * 0.02,
+                            pos.y + cos(uniforms.time * 0.15 + pos.x * 5.0) * 0.02,
+                            pos.z,
+                            1.0
+                        );
+                        output.alpha = 0.15 + uniforms.running * 0.15 + sin(uniforms.time + pos.x * 20.0) * 0.05;
+                        return output;
+                    }
+
+                    @fragment
+                    fn fragmentMain(@location(0) alpha: f32) -> @location(0) vec4f {
+                        return vec4f(0.3, 0.3, 0.3, alpha);
+                    }
+                `;
+
+                const shaderModule = device.createShaderModule({ code: shaderCode });
+
+                const uniformBuffer = device.createBuffer({
+                    size: 16,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                });
+
+                const bindGroupLayout = device.createBindGroupLayout({
+                    entries: [{
+                        binding: 0,
+                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' }
+                    }]
+                });
+
+                const bindGroup = device.createBindGroup({
+                    layout: bindGroupLayout,
+                    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
+                });
+
+                const pipeline = device.createRenderPipeline({
+                    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vertexMain',
+                        buffers: [{
+                            arrayStride: 16,
+                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' }]
+                        }]
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fragmentMain',
+                        targets: [{
+                            format,
+                            blend: {
+                                color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                                alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                            }
+                        }]
+                    },
+                    primitive: { topology: 'point-list' }
+                });
+
+                let isRunning = false;
+                let animationId;
+                const startTime = performance.now();
+
+                const render = () => {
+                    const time = (performance.now() - startTime) / 1000;
+                    const aspect = canvas.width / canvas.height;
+
+                    device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([time, isRunning ? 1 : 0, aspect, 0]));
+
+                    const commandEncoder = device.createCommandEncoder();
+                    const textureView = context.getCurrentTexture().createView();
+
+                    const renderPass = commandEncoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: textureView,
+                            clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                            loadOp: 'clear',
+                            storeOp: 'store'
+                        }]
+                    });
+
+                    renderPass.setPipeline(pipeline);
+                    renderPass.setBindGroup(0, bindGroup);
+                    renderPass.setVertexBuffer(0, particleBuffer);
+                    renderPass.draw(particleCount);
+                    renderPass.end();
+
+                    device.queue.submit([commandEncoder.finish()]);
+                    animationId = requestAnimationFrame(render);
+                };
+
+                const handleResize = () => {
+                    canvas.width = window.innerWidth * Math.min(window.devicePixelRatio, 2);
+                    canvas.height = window.innerHeight * Math.min(window.devicePixelRatio, 2);
+                };
+                handleResize();
+                window.addEventListener('resize', handleResize);
+                render();
+
+                console.log('WebGPU particles initialized');
+
+                return {
+                    setTimerState: (running) => { isRunning = running; },
+                    destroy: () => {
+                        cancelAnimationFrame(animationId);
+                        window.removeEventListener('resize', handleResize);
+                        device.destroy();
+                    }
+                };
+            } catch (e) {
+                console.log('WebGPU particle init failed:', e);
+                return null;
+            }
+        };
+
+        // WebGL fallback using Three.js
+        const initWebGLBackground = async () => {
+            const canvas = document.getElementById('webgl-bg');
+            if (!canvas) return null;
+
+            // Try WebGPU first
+            if (isWebGPUSupported()) {
+                const webgpuSystem = await initWebGPUParticles(canvas);
+                if (webgpuSystem) return webgpuSystem;
+            }
+
+            // Fallback to Three.js WebGL
+            if (!window.THREE) return null;
+            console.log('Using WebGL fallback');
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Create particle field
+            const particleCount = 800;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 20;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+                velocities[i * 3] = (Math.random() - 0.5) * 0.002;
+                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.002;
+                velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.002;
+                sizes[i] = Math.random() * 2 + 0.5;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                color: 0xaaaaaa,
+                size: 0.08,
+                transparent: true,
+                opacity: 0.6,
+                sizeAttenuation: true
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 5;
+
+            let animationId;
+            let timerProgress = 0;
+            let isRunning = false;
+
+            const animate = () => {
+                animationId = requestAnimationFrame(animate);
+
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] += velocities[i * 3];
+                    positions[i * 3 + 1] += velocities[i * 3 + 1];
+                    positions[i * 3 + 2] += velocities[i * 3 + 2];
+
+                    // Wrap around
+                    if (Math.abs(positions[i * 3]) > 10) velocities[i * 3] *= -1;
+                    if (Math.abs(positions[i * 3 + 1]) > 10) velocities[i * 3 + 1] *= -1;
+                    if (Math.abs(positions[i * 3 + 2]) > 10) velocities[i * 3 + 2] *= -1;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+
+                // Subtle rotation based on timer state
+                const rotationSpeed = isRunning ? 0.0008 : 0.0003;
+                particles.rotation.y += rotationSpeed;
+                particles.rotation.x += rotationSpeed * 0.3;
+
+                // Pulse effect when running
+                if (isRunning) {
+                    const pulse = Math.sin(Date.now() * 0.002) * 0.1 + 1;
+                    material.opacity = 0.5 + pulse * 0.2;
+                    material.size = 0.1 + pulse * 0.02;
+                } else {
+                    material.opacity = 0.4;
+                    material.size = 0.08;
+                }
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            const handleResize = () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            };
+            window.addEventListener('resize', handleResize);
+
+            return {
+                setTimerState: (running, progress) => {
+                    isRunning = running;
+                    timerProgress = progress;
+                },
+                destroy: () => {
+                    cancelAnimationFrame(animationId);
+                    window.removeEventListener('resize', handleResize);
+                    renderer.dispose();
+                }
+            };
+        };
+
+        // Global reference for WebGL background
+        let webglBg = null;
+
+        // ============================================
+        // Timer Orb - 3D Pulsating Sphere
+        // ============================================
+        const createTimerOrb = (canvas) => {
+            if (!canvas || !window.THREE) return null;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(280, 280);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Create glassmorphic sphere with multiple layers
+            const sphereGeometry = new THREE.SphereGeometry(1.8, 64, 64);
+
+            // Inner glow sphere
+            const innerMaterial = new THREE.MeshBasicMaterial({
+                color: 0xf5f5f0,
+                transparent: true,
+                opacity: 0.3
+            });
+            const innerSphere = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), innerMaterial);
+            scene.add(innerSphere);
+
+            // Main sphere with gradient-like effect
+            const mainMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xe8e8e0,
+                metalness: 0.1,
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.6,
+                transmission: 0.3,
+                thickness: 0.5,
+                envMapIntensity: 0.5
+            });
+            const mainSphere = new THREE.Mesh(sphereGeometry, mainMaterial);
+            scene.add(mainSphere);
+
+            // Outer glow ring
+            const ringGeometry = new THREE.TorusGeometry(2.2, 0.03, 16, 100);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1a1a1a,
+                transparent: true,
+                opacity: 0.2
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            scene.add(ring);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(2, 3, 5);
+            scene.add(directionalLight);
+
+            const backLight = new THREE.DirectionalLight(0xf0f0e8, 0.3);
+            backLight.position.set(-2, -1, -3);
+            scene.add(backLight);
+
+            camera.position.z = 5;
+
+            let animationId;
+            let progress = 0;
+            let isRunning = false;
+            let baseScale = 1;
+            let targetScale = 1;
+
+            const animate = () => {
+                animationId = requestAnimationFrame(animate);
+
+                const time = Date.now() * 0.001;
+
+                // Smooth scale transition
+                baseScale += (targetScale - baseScale) * 0.05;
+
+                // Pulsation - slower when paused, faster when running
+                const pulseSpeed = isRunning ? 1.5 : 0.5;
+                const pulseAmount = isRunning ? 0.08 : 0.03;
+                const pulse = Math.sin(time * pulseSpeed) * pulseAmount + 1;
+
+                const scale = baseScale * pulse;
+                mainSphere.scale.set(scale, scale, scale);
+                innerSphere.scale.set(scale * 0.85, scale * 0.85, scale * 0.85);
+
+                // Gentle rotation
+                mainSphere.rotation.y = time * 0.1;
+                mainSphere.rotation.x = Math.sin(time * 0.2) * 0.1;
+                innerSphere.rotation.y = -time * 0.15;
+
+                // Ring follows progress
+                ring.rotation.x = Math.PI / 2;
+                ring.rotation.z = time * 0.2;
+
+                // Color shift based on progress
+                const hue = 0.08 - progress * 0.08; // Subtle warm shift as timer progresses
+                mainMaterial.color.setHSL(hue, 0.05, 0.9);
+
+                // Opacity based on running state
+                mainMaterial.opacity = isRunning ? 0.7 : 0.5;
+                innerMaterial.opacity = isRunning ? 0.4 : 0.2;
+                ringMaterial.opacity = isRunning ? 0.3 : 0.15;
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            return {
+                setProgress: (p) => { progress = p; },
+                setRunning: (r) => {
+                    isRunning = r;
+                    targetScale = r ? 1.05 : 1;
+                },
+                resize: (size) => {
+                    renderer.setSize(size, size);
+                },
+                destroy: () => {
+                    cancelAnimationFrame(animationId);
+                    renderer.dispose();
+                }
+            };
+        };
+
+        // ============================================
+        // Ambient Sound System
+        // ============================================
+        const ambientModes = {
+            off: { name: 'Off', generate: null },
+            focus: {
+                name: 'Focus',
+                generate: (ctx, gainNode) => {
+                    // Deep focus drone - layered sine waves
+                    const frequencies = [55, 110, 165, 82.5];
+                    const oscillators = frequencies.map((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const oscGain = ctx.createGain();
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        oscGain.gain.value = 0.15 / (i + 1);
+                        osc.connect(oscGain);
+                        oscGain.connect(gainNode);
+                        osc.start();
+                        return { osc, gain: oscGain };
+                    });
+
+                    // Slow LFO for subtle movement
+                    const lfo = ctx.createOscillator();
+                    const lfoGain = ctx.createGain();
+                    lfo.frequency.value = 0.1;
+                    lfoGain.gain.value = 3;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(oscillators[0].osc.frequency);
+                    lfo.start();
+
+                    return () => {
+                        oscillators.forEach(o => { o.osc.stop(); o.osc.disconnect(); });
+                        lfo.stop();
+                        lfo.disconnect();
+                    };
+                }
+            },
+            rain: {
+                name: 'Rain',
+                generate: (ctx, gainNode) => {
+                    // Brown noise for rain-like ambience
+                    const bufferSize = 2 * ctx.sampleRate;
+                    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+
+                    let lastOut = 0;
+                    for (let i = 0; i < bufferSize; i++) {
+                        const white = Math.random() * 2 - 1;
+                        output[i] = (lastOut + (0.02 * white)) / 1.02;
+                        lastOut = output[i];
+                        output[i] *= 3.5; // Boost volume
+                    }
+
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    noise.loop = true;
+
+                    // Filter for softer sound
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 400;
+
+                    noise.connect(filter);
+                    filter.connect(gainNode);
+                    noise.start();
+
+                    return () => {
+                        noise.stop();
+                        noise.disconnect();
+                        filter.disconnect();
+                    };
+                }
+            },
+            space: {
+                name: 'Space',
+                generate: (ctx, gainNode) => {
+                    // Ethereal space ambience with slow sweeping tones
+                    const oscillators = [];
+                    const baseFreqs = [40, 60, 80];
+
+                    baseFreqs.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const oscGain = ctx.createGain();
+                        const filter = ctx.createBiquadFilter();
+
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        filter.type = 'lowpass';
+                        filter.frequency.value = 200;
+                        filter.Q.value = 5;
+                        oscGain.gain.value = 0.12;
+
+                        osc.connect(filter);
+                        filter.connect(oscGain);
+                        oscGain.connect(gainNode);
+                        osc.start();
+
+                        // Slow sweep
+                        const lfo = ctx.createOscillator();
+                        const lfoGain = ctx.createGain();
+                        lfo.frequency.value = 0.05 + i * 0.02;
+                        lfoGain.gain.value = freq * 0.3;
+                        lfo.connect(lfoGain);
+                        lfoGain.connect(osc.frequency);
+                        lfo.start();
+
+                        oscillators.push({ osc, lfo, filter, gain: oscGain });
+                    });
+
+                    return () => {
+                        oscillators.forEach(o => {
+                            o.osc.stop();
+                            o.lfo.stop();
+                            o.osc.disconnect();
+                            o.lfo.disconnect();
+                        });
+                    };
+                }
+            }
+        };
+
+        const createAmbientSoundSystem = (audioCtx) => {
+            if (!audioCtx) return null;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0;
+            masterGain.connect(audioCtx.destination);
+
+            let currentMode = 'off';
+            let stopCurrentAmbient = null;
+            let targetVolume = 0;
+
+            const setMode = (mode) => {
+                if (stopCurrentAmbient) {
+                    stopCurrentAmbient();
+                    stopCurrentAmbient = null;
+                }
+
+                currentMode = mode;
+                if (mode !== 'off' && ambientModes[mode]?.generate) {
+                    stopCurrentAmbient = ambientModes[mode].generate(audioCtx, masterGain);
+                }
+            };
+
+            const setVolume = (vol) => {
+                targetVolume = vol;
+                masterGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+            };
+
+            const getVolume = () => targetVolume;
+            const getMode = () => currentMode;
+
+            const destroy = () => {
+                if (stopCurrentAmbient) {
+                    stopCurrentAmbient();
+                }
+                masterGain.disconnect();
+            };
+
+            return { setMode, setVolume, getVolume, getMode, destroy };
+        };
+
         // Audio context for generating beeps
         const createAudioContext = () => {
             return new (window.AudioContext || window.webkitAudioContext)();
         };
 
-        const playBeep = (audioCtx, frequency = 800, duration = 0.1, count = 1) => {
+        const playBeep = (audioCtx, masterGain, frequency = 800, duration = 0.1, count = 1) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             const playOne = (delay) => {
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+                gainNode.connect(destination);
                 oscillator.frequency.value = frequency;
                 oscillator.type = 'sine';
                 gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
@@ -1113,15 +1991,16 @@
             for (let i = 0; i < count; i++) playOne(i * 0.25);
         };
 
-        const playProgressBeep = (audioCtx, count = 1) => {
+        const playProgressBeep = (audioCtx, masterGain, count = 1) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Soft, gentle progress indicator
             for (let i = 0; i < count; i++) {
                 setTimeout(() => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    gain.connect(destination);
                     osc.frequency.value = 220;
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1133,8 +2012,9 @@
             }
         };
 
-        const playCompletionSound = (audioCtx) => {
+        const playCompletionSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Rich completion sequence - 2.5 seconds of satisfying closure
             const now = audioCtx.currentTime;
 
@@ -1146,7 +2026,7 @@
             chordOsc1.connect(chordGain);
             chordOsc2.connect(chordGain);
             chordOsc3.connect(chordGain);
-            chordGain.connect(audioCtx.destination);
+            chordGain.connect(destination);
             chordOsc1.frequency.value = 220; // A
             chordOsc2.frequency.value = 277; // C#
             chordOsc3.frequency.value = 330; // E
@@ -1170,7 +2050,7 @@
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    gain.connect(destination);
                     osc.frequency.value = freq;
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1186,7 +2066,7 @@
                 const gongOsc = audioCtx.createOscillator();
                 const gongGain = audioCtx.createGain();
                 gongOsc.connect(gongGain);
-                gongGain.connect(audioCtx.destination);
+                gongGain.connect(destination);
                 gongOsc.frequency.value = 110;
                 gongOsc.type = 'sine';
                 gongGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1197,13 +2077,14 @@
             }, 1800);
         };
 
-        const playWarningBeep = (audioCtx) => {
+        const playWarningBeep = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Gentle reminder that time is running out
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(destination);
             osc.frequency.value = 330;
             osc.type = 'sine';
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1213,15 +2094,16 @@
             osc.stop(audioCtx.currentTime + 0.15);
         };
 
-        const playReminderSound = (audioCtx) => {
+        const playReminderSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
             [880, 1100, 880, 1100].forEach((freq, i) => {
-                setTimeout(() => playBeep(audioCtx, freq, 0.08, 1), i * 100);
+                setTimeout(() => playBeep(audioCtx, masterGain, freq, 0.08, 1), i * 100);
             });
         };
 
-        const playStartSound = (audioCtx) => {
+        const playStartSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Warm, gentle startup - 2 seconds of soft building energy
             const now = audioCtx.currentTime;
 
@@ -1229,7 +2111,7 @@
             const humOsc = audioCtx.createOscillator();
             const humGain = audioCtx.createGain();
             humOsc.connect(humGain);
-            humGain.connect(audioCtx.destination);
+            humGain.connect(destination);
             humOsc.frequency.value = 55;
             humOsc.type = 'sine';
             humGain.gain.setValueAtTime(0, now);
@@ -1245,7 +2127,7 @@
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    gain.connect(destination);
                     osc.frequency.value = freq;
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1263,7 +2145,7 @@
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.connect(gain);
-                        gain.connect(audioCtx.destination);
+                        gain.connect(destination);
                         osc.frequency.value = freq;
                         osc.type = 'sine';
                         gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1276,13 +2158,14 @@
             }, 1500);
         };
 
-        const playPauseSound = (audioCtx) => {
+        const playPauseSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Soft descending hum
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(destination);
             osc.frequency.setValueAtTime(220, audioCtx.currentTime);
             osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.4);
             osc.type = 'sine';
@@ -1293,13 +2176,14 @@
             osc.stop(audioCtx.currentTime + 0.4);
         };
 
-        const playClickSound = (audioCtx) => {
+        const playClickSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Soft thud
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(destination);
             osc.frequency.value = 150;
             osc.type = 'sine';
             gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
@@ -1308,13 +2192,14 @@
             osc.stop(audioCtx.currentTime + 0.06);
         };
 
-        const playModeChangeSound = (audioCtx) => {
+        const playModeChangeSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Gentle whoosh
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(destination);
             osc.frequency.setValueAtTime(180, audioCtx.currentTime);
             osc.frequency.linearRampToValueAtTime(280, audioCtx.currentTime + 0.15);
             osc.type = 'sine';
@@ -1325,13 +2210,14 @@
             osc.stop(audioCtx.currentTime + 0.15);
         };
 
-        const playToggleSound = (audioCtx, on) => {
+        const playToggleSound = (audioCtx, masterGain, on) => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             // Soft pop
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(destination);
             osc.frequency.value = on ? 280 : 180;
             osc.type = 'sine';
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1343,11 +2229,11 @@
 
         // Tick sound styles
         const tickStyles = {
-            soft: (audioCtx) => {
+            soft: (audioCtx, destination) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(destination);
                 osc.frequency.value = 200;
                 osc.type = 'sine';
                 gain.gain.setValueAtTime(0.025, audioCtx.currentTime);
@@ -1355,11 +2241,11 @@
                 osc.start(audioCtx.currentTime);
                 osc.stop(audioCtx.currentTime + 0.02);
             },
-            click: (audioCtx) => {
+            click: (audioCtx, destination) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(destination);
                 osc.frequency.value = 800;
                 osc.type = 'square';
                 gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
@@ -1367,11 +2253,11 @@
                 osc.start(audioCtx.currentTime);
                 osc.stop(audioCtx.currentTime + 0.008);
             },
-            pulse: (audioCtx) => {
+            pulse: (audioCtx, destination) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(destination);
                 osc.frequency.value = 60;
                 osc.type = 'sine';
                 gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
@@ -1379,11 +2265,11 @@
                 osc.start(audioCtx.currentTime);
                 osc.stop(audioCtx.currentTime + 0.03);
             },
-            woodblock: (audioCtx) => {
+            woodblock: (audioCtx, destination) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(destination);
                 osc.frequency.value = 1200;
                 osc.type = 'triangle';
                 gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
@@ -1393,10 +2279,11 @@
             }
         };
 
-        const playTickSound = (audioCtx, style = 'soft') => {
+        const playTickSound = (audioCtx, masterGain, style = 'soft') => {
             if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
             if (tickStyles[style]) {
-                tickStyles[style](audioCtx);
+                tickStyles[style](audioCtx, destination);
             }
         };
 
@@ -1659,18 +2546,29 @@
                 };
             }, [user, dataLoaded]);
 
-            // Sound toggles
-            const [soundEnabled, setSoundEnabled] = useState(true);
-            const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(true);
-            const [beepInterval, setBeepInterval] = useState(5); // 1 or 5 minutes
-            const [tickSoundEnabled, setTickSoundEnabled] = useState(false);
-            const [tickStyle, setTickStyle] = useState('soft');
+            // Load saved preferences from localStorage
+            const loadPreferences = () => {
+                try {
+                    const saved = localStorage.getItem('activetomato-preferences');
+                    return saved ? JSON.parse(saved) : {};
+                } catch (e) {
+                    return {};
+                }
+            };
+            const savedPrefs = loadPreferences();
 
-            // Reminder & Auto-start
-            const [reminderEnabled, setReminderEnabled] = useState(false);
-            const [reminderInterval, setReminderInterval] = useState(30);
-            const [autoStartEnabled, setAutoStartEnabled] = useState(false);
-            const [autoSeriesEnabled, setAutoSeriesEnabled] = useState(false);
+            // Sound toggles (load from saved preferences)
+            const [soundEnabled, setSoundEnabled] = useState(savedPrefs.soundEnabled ?? true);
+            const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(savedPrefs.intervalSoundEnabled ?? true);
+            const [beepInterval, setBeepInterval] = useState(savedPrefs.beepInterval ?? 5); // 1 or 5 minutes
+            const [tickSoundEnabled, setTickSoundEnabled] = useState(savedPrefs.tickSoundEnabled ?? false);
+            const [tickStyle, setTickStyle] = useState(savedPrefs.tickStyle ?? 'soft');
+
+            // Reminder & Auto-start (load from saved preferences)
+            const [reminderEnabled, setReminderEnabled] = useState(savedPrefs.reminderEnabled ?? false);
+            const [reminderInterval, setReminderInterval] = useState(savedPrefs.reminderInterval ?? 30);
+            const [autoStartEnabled, setAutoStartEnabled] = useState(savedPrefs.autoStartEnabled ?? false);
+            const [autoSeriesEnabled, setAutoSeriesEnabled] = useState(savedPrefs.autoSeriesEnabled ?? false);
 
             const [notification, setNotification] = useState(null);
             const [hoveredDay, setHoveredDay] = useState(null);
@@ -1683,6 +2581,12 @@
             const syncingFromRemoteRef = useRef(false);
             const prevIsRunningRef = useRef(false);
 
+            // WebGL refs
+            const orbCanvasRef = useRef(null);
+            const orbRef = useRef(null);
+            const masterGainRef = useRef(null);
+            const [systemVolume, setSystemVolume] = useState(savedPrefs.systemVolume ?? 0.5);
+
             const durations = { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 };
             const modeLabels = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
 
@@ -1693,6 +2597,84 @@
                 // Mobile browsers suspend AudioContext - must resume on user gesture
                 if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
                     audioCtxRef.current.resume();
+                }
+
+                // Initialize master gain node for system volume control
+                if (!masterGainRef.current && audioCtxRef.current) {
+                    masterGainRef.current = audioCtxRef.current.createGain();
+                    masterGainRef.current.connect(audioCtxRef.current.destination);
+                    masterGainRef.current.gain.value = systemVolume;
+                }
+            };
+
+            // Save preferences to localStorage whenever they change
+            useEffect(() => {
+                const prefs = {
+                    soundEnabled,
+                    intervalSoundEnabled,
+                    beepInterval,
+                    tickSoundEnabled,
+                    tickStyle,
+                    reminderEnabled,
+                    reminderInterval,
+                    autoStartEnabled,
+                    autoSeriesEnabled,
+                    systemVolume
+                };
+                localStorage.setItem('activetomato-preferences', JSON.stringify(prefs));
+            }, [soundEnabled, intervalSoundEnabled, beepInterval, tickSoundEnabled, tickStyle,
+                reminderEnabled, reminderInterval, autoStartEnabled, autoSeriesEnabled, systemVolume]);
+
+            // Initialize WebGL background and orb
+            useEffect(() => {
+                // Initialize background particles (async for WebGPU check)
+                const initBg = async () => {
+                    if (!webglBg) {
+                        webglBg = await initWebGLBackground();
+                    }
+                };
+                initBg();
+
+                // Initialize timer orb
+                if (orbCanvasRef.current && !orbRef.current) {
+                    orbRef.current = createTimerOrb(orbCanvasRef.current);
+                }
+
+                return () => {
+                    if (orbRef.current) {
+                        orbRef.current.destroy();
+                        orbRef.current = null;
+                    }
+                };
+            }, []);
+
+            // Update orb state based on timer
+            useEffect(() => {
+                if (orbRef.current) {
+                    orbRef.current.setRunning(isRunning);
+                    orbRef.current.setProgress((durations[mode] - timeLeft) / durations[mode]);
+                }
+                if (webglBg) {
+                    webglBg.setTimerState(isRunning, (durations[mode] - timeLeft) / durations[mode]);
+                }
+            }, [isRunning, timeLeft, mode]);
+
+            // Handle system volume changes
+            const handleSystemVolumeChange = (vol) => {
+                setSystemVolume(vol);
+                if (masterGainRef.current) {
+                    masterGainRef.current.gain.linearRampToValueAtTime(vol, audioCtxRef.current.currentTime + 0.1);
+                }
+            };
+
+            // Tauri widget mode toggle
+            const toggleWidgetMode = async () => {
+                if (window.__TAURI__) {
+                    try {
+                        await window.__TAURI__.core.invoke('toggle_widget_mode');
+                    } catch (e) {
+                        console.log('Widget mode toggle failed:', e);
+                    }
                 }
             };
 
@@ -1728,7 +2710,7 @@
             const handleModeChange = (newMode) => {
                 initAudio();
                 if (soundEnabled && audioCtxRef.current) {
-                    playModeChangeSound(audioCtxRef.current);
+                    playModeChangeSound(audioCtxRef.current, masterGainRef.current);
                 }
                 setMode(newMode);
                 setTimeLeft(durations[newMode]);
@@ -1739,7 +2721,7 @@
             const handleSeriesSelect = (target) => {
                 initAudio();
                 if (soundEnabled && audioCtxRef.current) {
-                    playClickSound(audioCtxRef.current);
+                    playClickSound(audioCtxRef.current, masterGainRef.current);
                 }
                 setSeriesTarget(target);
                 setSeriesProgress(0);
@@ -1752,7 +2734,7 @@
                 if (!isRunning) {
                     addLogEntry(`Started ${modeLabels[mode]}`);
                     if (soundEnabled && audioCtxRef.current) {
-                        playStartSound(audioCtxRef.current);
+                        playStartSound(audioCtxRef.current, masterGainRef.current);
                     }
                 }
                 setIsRunning(true);
@@ -1763,11 +2745,11 @@
                 if (!isRunning) {
                     addLogEntry(`Started ${modeLabels[mode]}`);
                     if (soundEnabled && audioCtxRef.current) {
-                        playStartSound(audioCtxRef.current);
+                        playStartSound(audioCtxRef.current, masterGainRef.current);
                     }
                 } else {
                     if (soundEnabled && audioCtxRef.current) {
-                        playPauseSound(audioCtxRef.current);
+                        playPauseSound(audioCtxRef.current, masterGainRef.current);
                     }
                 }
                 setIsRunning(!isRunning);
@@ -1776,7 +2758,7 @@
             const resetTimer = () => {
                 initAudio();
                 if (soundEnabled && audioCtxRef.current) {
-                    playClickSound(audioCtxRef.current);
+                    playClickSound(audioCtxRef.current, masterGainRef.current);
                 }
                 const newTimeLeft = durations[mode];
                 setTimeLeft(newTimeLeft);
@@ -1844,7 +2826,7 @@
                     reminderTimerRef.current = setInterval(() => {
                         initAudio();
                         if (audioCtxRef.current) {
-                            playReminderSound(audioCtxRef.current);
+                            playReminderSound(audioCtxRef.current, masterGainRef.current);
                         }
                         showNotification('Time to focus! Start your pomodoro.');
 
@@ -1896,7 +2878,7 @@
                     }
 
                     if (soundEnabled && audioCtxRef.current) {
-                        playCompletionSound(audioCtxRef.current);
+                        playCompletionSound(audioCtxRef.current, masterGainRef.current);
                     }
 
                     // Series mode logic
@@ -1966,7 +2948,7 @@
                             const newTime = prev - 1;
 
                             if (tickSoundEnabled && audioCtxRef.current) {
-                                playTickSound(audioCtxRef.current, tickStyle);
+                                playTickSound(audioCtxRef.current, masterGainRef.current, tickStyle);
                             }
 
                             if (intervalSoundEnabled && audioCtxRef.current && mode === 'work') {
@@ -1975,12 +2957,12 @@
                                 const intervals = Math.floor(elapsed / intervalSeconds);
                                 if (intervals > lastIntervalRef.current && intervals > 0) {
                                     lastIntervalRef.current = intervals;
-                                    playProgressBeep(audioCtxRef.current, intervals);
+                                    playProgressBeep(audioCtxRef.current, masterGainRef.current, intervals);
                                 }
                             }
 
                             if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
-                                playWarningBeep(audioCtxRef.current);
+                                playWarningBeep(audioCtxRef.current, masterGainRef.current);
                             }
 
                             return newTime;
@@ -2132,17 +3114,22 @@
                                         {isRunning ? 'Pause' : 'Start'}
                                     </button>
                                     <button className="btn" onClick={resetTimer}>Reset</button>
+                                    {window.__TAURI__ && (
+                                        <button className="btn" onClick={toggleWidgetMode} title="Toggle Widget Mode">
+                                            Widget
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Toggle Panels */}
                                 <div className="toggle-panels">
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Audio Cues</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !soundEnabled); setSoundEnabled(!soundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !soundEnabled); setSoundEnabled(!soundEnabled); }}>
                                             <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
                                             <label>Completion Sound</label>
                                         </div>
-                                        <div className="toggle-item tooltip" data-tooltip="Beep at intervals: 1 beep at first interval, 2 at second, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Beep at intervals: 1 beep at first interval, 2 at second, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
                                             <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
                                             <label>Progress Beeps</label>
                                         </div>
@@ -2156,14 +3143,14 @@
                                                         if (!intervalSoundEnabled) return;
                                                         initAudio();
                                                         setBeepInterval(mins);
-                                                        playProgressBeep(audioCtxRef.current, 1);
+                                                        playProgressBeep(audioCtxRef.current, masterGainRef.current, 1);
                                                     }}
                                                 >
                                                     {mins} min
                                                 </button>
                                             ))}
                                         </div>
-                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !tickSoundEnabled); setTickSoundEnabled(!tickSoundEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !tickSoundEnabled); setTickSoundEnabled(!tickSoundEnabled); }}>
                                             <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
                                             <label>Countdown Tick</label>
                                         </div>
@@ -2177,7 +3164,7 @@
                                                         if (!tickSoundEnabled) return;
                                                         initAudio();
                                                         setTickStyle(style);
-                                                        playTickSound(audioCtxRef.current, style);
+                                                        playTickSound(audioCtxRef.current, masterGainRef.current, style);
                                                     }}
                                                 >
                                                     {style}
@@ -2188,7 +3175,7 @@
 
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Nudge Me</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !reminderEnabled); setReminderEnabled(!reminderEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !reminderEnabled); setReminderEnabled(!reminderEnabled); }}>
                                             <div className={`toggle-switch ${reminderEnabled ? 'on' : ''}`} />
                                             <label>Remind to Focus</label>
                                         </div>
@@ -2198,7 +3185,7 @@
                                                 <select
                                                     className="reminder-select"
                                                     value={reminderInterval}
-                                                    onChange={(e) => { initAudio(); playClickSound(audioCtxRef.current); setReminderInterval(parseInt(e.target.value)); }}
+                                                    onChange={(e) => { initAudio(); playClickSound(audioCtxRef.current, masterGainRef.current); setReminderInterval(parseInt(e.target.value)); }}
                                                 >
                                                     <option value={5}>5 min</option>
                                                     <option value={10}>10 min</option>
@@ -2208,7 +3195,7 @@
                                                 </select>
                                             </div>
                                         )}
-                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !autoStartEnabled); setAutoStartEnabled(!autoStartEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !autoStartEnabled); setAutoStartEnabled(!autoStartEnabled); }}>
                                             <div className={`toggle-switch ${autoStartEnabled ? 'on' : ''}`} />
                                             <label>Auto-Start</label>
                                         </div>
@@ -2216,9 +3203,27 @@
 
                                     <div className="toggle-group">
                                         <div className="toggle-group-label">Chain Mode</div>
-                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, !autoSeriesEnabled); setAutoSeriesEnabled(!autoSeriesEnabled); }}>
+                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !autoSeriesEnabled); setAutoSeriesEnabled(!autoSeriesEnabled); }}>
                                             <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
                                             <label>Chain Sessions</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Sound Volume</div>
+                                        <div className="ambient-controls">
+                                            <div className="ambient-slider-container" style={{marginTop: '8px'}}>
+                                                <input
+                                                    type="range"
+                                                    className="ambient-slider"
+                                                    min="0"
+                                                    max="1"
+                                                    step="0.05"
+                                                    value={systemVolume}
+                                                    onChange={(e) => { initAudio(); handleSystemVolumeChange(parseFloat(e.target.value)); }}
+                                                />
+                                                <span className="ambient-volume-display">{Math.round(systemVolume * 100)}%</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2559,6 +3564,11 @@
 
             // Logged in or guest mode - show main app
             return <ActiveTomato user={user} onLogout={handleLogout} />;
+        }
+
+        // Detect Tauri and add class for frameless window styling
+        if (window.__TAURI__) {
+            document.body.classList.add('tauri-app');
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
