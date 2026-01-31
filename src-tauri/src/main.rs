@@ -7,14 +7,14 @@ use tauri::{
     LogicalPosition,
     tray::TrayIconBuilder,
     menu::{Menu, MenuItem},
+    WebviewWindow,
 };
 use std::sync::atomic::{AtomicU8, Ordering};
 
 // 0 = full, 1 = widget, 2 = mini
 static VIEW_MODE: AtomicU8 = AtomicU8::new(0);
 
-#[tauri::command]
-fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
+fn apply_view_mode(window: &WebviewWindow, mode: u8) {
     VIEW_MODE.store(mode, Ordering::SeqCst);
 
     match mode {
@@ -296,17 +296,22 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
 }
 
 #[tauri::command]
+fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
+    apply_view_mode(&window, mode);
+}
+
+#[tauri::command]
 fn toggle_widget_mode(window: tauri::WebviewWindow) {
     let current = VIEW_MODE.load(Ordering::SeqCst);
     let next = if current == 0 { 1 } else { 0 };
-    set_view_mode(window, next);
+    apply_view_mode(&window, next);
 }
 
 #[tauri::command]
 fn cycle_view_mode(window: tauri::WebviewWindow) {
     let current = VIEW_MODE.load(Ordering::SeqCst);
     let next = (current + 1) % 3;
-    set_view_mode(window, next);
+    apply_view_mode(&window, next);
 }
 
 #[tauri::command]
@@ -328,30 +333,34 @@ fn main() {
             let menu = Menu::with_items(app, &[&show, &widget, &mini, &hide, &quit])?;
 
             // Build tray icon
+            let app_handle = app.handle().clone();
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    if let Some(window) = app.get_webview_window("main") {
+                .on_menu_event(move |_app, event| {
+                    if let Some(window) = app_handle.get_webview_window("main") {
                         match event.id.as_ref() {
                             "show" => {
                                 let _ = window.show();
-                                let _ = window.eval("window.__TAURI__.core.invoke('set_view_mode', { mode: 0 })");
+                                let _ = window.set_focus();
+                                apply_view_mode(&window, 0);
                             }
                             "widget" => {
                                 let _ = window.show();
-                                let _ = window.eval("window.__TAURI__.core.invoke('set_view_mode', { mode: 1 })");
+                                let _ = window.set_focus();
+                                apply_view_mode(&window, 1);
                             }
                             "mini" => {
                                 let _ = window.show();
-                                let _ = window.eval("window.__TAURI__.core.invoke('set_view_mode', { mode: 2 })");
+                                let _ = window.set_focus();
+                                apply_view_mode(&window, 2);
                             }
                             "hide" => {
                                 let _ = window.hide();
                             }
                             "quit" => {
-                                app.exit(0);
+                                std::process::exit(0);
                             }
                             _ => {}
                         }
