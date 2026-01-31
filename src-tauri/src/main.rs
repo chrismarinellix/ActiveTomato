@@ -20,7 +20,7 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
     match mode {
         2 => {
             // Mini mode - super compact, just timer and progress
-            let _ = window.set_size(LogicalSize::new(200.0, 80.0));
+            let _ = window.set_size(LogicalSize::new(220.0, 90.0));
             let _ = window.set_decorations(false);
             let _ = window.set_always_on_top(true);
             let _ = window.set_skip_taskbar(true);
@@ -30,7 +30,7 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 if let Some(monitor) = monitor {
                     let size = monitor.size();
                     let scale = monitor.scale_factor();
-                    let x = (size.width as f64 / scale) - 220.0;
+                    let x = (size.width as f64 / scale) - 240.0;
                     let y = 40.0;
                     let _ = window.set_position(LogicalPosition::new(x, y));
                 }
@@ -39,6 +39,35 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
             let _ = window.eval(r#"
                 document.body.classList.remove('widget-mode');
                 document.body.classList.add('mini-mode');
+
+                // Create drag bar if not exists
+                if (!document.getElementById('drag-bar')) {
+                    const dragBar = document.createElement('div');
+                    dragBar.id = 'drag-bar';
+                    dragBar.innerHTML = '⋮⋮';
+                    dragBar.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 20px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                        color: rgba(0,0,0,0.3);
+                        cursor: grab;
+                        z-index: 9999;
+                        letter-spacing: 2px;
+                    `;
+                    dragBar.onmousedown = (e) => {
+                        e.preventDefault();
+                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                    };
+                    document.body.appendChild(dragBar);
+                }
+                document.getElementById('drag-bar').style.display = 'flex';
+
                 if (!document.getElementById('mini-style')) {
                     const style = document.createElement('style');
                     style.id = 'mini-style';
@@ -60,14 +89,11 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                             backdrop-filter: blur(20px) !important;
                             -webkit-backdrop-filter: blur(20px) !important;
                             box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1) !important;
-                            padding: 12px 16px !important;
+                            padding: 20px 16px 12px !important;
                             display: flex !important;
                             align-items: center !important;
                             justify-content: center !important;
-                            -webkit-app-region: drag;
-                            cursor: grab;
                         }
-                        body.mini-mode .eink-screen:active { cursor: grabbing; }
                         body.mini-mode .eink-screen::before { display: none !important; }
                         body.mini-mode .screen-content {
                             display: flex !important;
@@ -93,21 +119,21 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                             display: flex !important;
                             flex-direction: column !important;
                             align-items: center !important;
-                            gap: 6px !important;
+                            gap: 8px !important;
                         }
                         body.mini-mode .timer-display {
                             margin: 0 !important;
                             display: flex !important;
                         }
                         body.mini-mode .timer-digits {
-                            font-size: 1.8rem !important;
+                            font-size: 2rem !important;
                             font-weight: 600 !important;
                             letter-spacing: 2px !important;
                             color: #1a1a1a !important;
                         }
                         body.mini-mode .timer-progress {
                             width: 100% !important;
-                            max-width: 160px !important;
+                            max-width: 180px !important;
                             height: 4px !important;
                             margin: 0 !important;
                             border-radius: 2px !important;
@@ -121,14 +147,13 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                     `;
                     document.head.appendChild(style);
                 }
-                // Remove widget style if present
                 const widgetStyle = document.getElementById('widget-style');
                 if (widgetStyle) widgetStyle.remove();
             "#);
         }
         1 => {
             // Widget mode - compact with controls
-            let _ = window.set_size(LogicalSize::new(280.0, 360.0));
+            let _ = window.set_size(LogicalSize::new(300.0, 400.0));
             let _ = window.set_decorations(false);
             let _ = window.set_always_on_top(true);
             let _ = window.set_skip_taskbar(true);
@@ -137,8 +162,8 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 if let Some(monitor) = monitor {
                     let size = monitor.size();
                     let scale = monitor.scale_factor();
-                    let x = (size.width as f64 / scale) - 300.0;
-                    let y = (size.height as f64 / scale) - 400.0;
+                    let x = (size.width as f64 / scale) - 320.0;
+                    let y = (size.height as f64 / scale) - 440.0;
                     let _ = window.set_position(LogicalPosition::new(x, y));
                 }
             }
@@ -146,6 +171,36 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
             let _ = window.eval(r#"
                 document.body.classList.remove('mini-mode');
                 document.body.classList.add('widget-mode');
+
+                // Create drag bar if not exists
+                if (!document.getElementById('drag-bar')) {
+                    const dragBar = document.createElement('div');
+                    dragBar.id = 'drag-bar';
+                    dragBar.innerHTML = '⋮⋮⋮';
+                    dragBar.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 24px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 12px;
+                        color: rgba(0,0,0,0.3);
+                        cursor: grab;
+                        z-index: 9999;
+                        letter-spacing: 3px;
+                        background: linear-gradient(to bottom, rgba(245,245,240,1) 0%, rgba(245,245,240,0) 100%);
+                    `;
+                    dragBar.onmousedown = (e) => {
+                        e.preventDefault();
+                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                    };
+                    document.body.appendChild(dragBar);
+                }
+                document.getElementById('drag-bar').style.display = 'flex';
+
                 if (!document.getElementById('widget-style')) {
                     const style = document.createElement('style');
                     style.id = 'widget-style';
@@ -161,13 +216,12 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                         body.widget-mode .eink-screen {
                             height: 100vh !important;
                             max-width: 100% !important;
-                            border-radius: 24px !important;
-                            background: rgba(245, 245, 240, 0.92) !important;
+                            border-radius: 20px !important;
+                            background: rgba(245, 245, 240, 0.95) !important;
                             backdrop-filter: blur(30px) saturate(180%) !important;
                             -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
-                            box-shadow: 0 25px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.3) !important;
-                            padding: 20px !important;
-                            -webkit-app-region: drag;
+                            box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1) !important;
+                            padding: 30px 20px 20px !important;
                         }
                         body.widget-mode .eink-screen::before { display: none !important; }
                         body.widget-mode .header,
@@ -180,18 +234,17 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                             justify-content: center !important;
                         }
                         body.widget-mode .timer-display { margin: 10px 0 !important; }
-                        body.widget-mode .timer-digits { font-size: 3rem !important; font-weight: 600 !important; }
-                        body.widget-mode .timer-label { font-size: 0.6rem !important; }
-                        body.widget-mode .mode-tabs { margin-bottom: 12px !important; transform: scale(0.9); }
-                        body.widget-mode .mode-tab { padding: 6px 12px !important; font-size: 0.55rem !important; }
-                        body.widget-mode .timer-progress { max-width: 200px !important; margin-top: 15px !important; }
+                        body.widget-mode .timer-digits { font-size: 3.5rem !important; font-weight: 600 !important; }
+                        body.widget-mode .timer-label { font-size: 0.65rem !important; }
+                        body.widget-mode .mode-tabs { margin-bottom: 15px !important; }
+                        body.widget-mode .mode-tab { padding: 8px 14px !important; font-size: 0.6rem !important; }
+                        body.widget-mode .timer-progress { max-width: 220px !important; margin-top: 15px !important; }
                         body.widget-mode .interval-indicator { display: none !important; }
-                        body.widget-mode .controls { margin: 12px 0 5px !important; gap: 8px !important; }
+                        body.widget-mode .controls { margin: 15px 0 8px !important; gap: 10px !important; }
                         body.widget-mode .btn {
-                            padding: 8px 18px !important;
-                            font-size: 0.65rem !important;
-                            -webkit-app-region: no-drag;
-                            border-radius: 6px !important;
+                            padding: 10px 22px !important;
+                            font-size: 0.7rem !important;
+                            border-radius: 8px !important;
                         }
                     `;
                     document.head.appendChild(style);
@@ -215,6 +268,8 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 if (widgetStyle) widgetStyle.remove();
                 const miniStyle = document.getElementById('mini-style');
                 if (miniStyle) miniStyle.remove();
+                const dragBar = document.getElementById('drag-bar');
+                if (dragBar) dragBar.style.display = 'none';
             "#);
         }
     }

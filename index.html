@@ -3048,8 +3048,16 @@
                         }
                     }}>
                         <div className="screen-content">
-                            {/* Header */}
-                            <div className="header">
+                            {/* Header - drag region */}
+                            <div className="header"
+                                style={{cursor: 'grab'}}
+                                onMouseDown={(e) => {
+                                    // Only start drag if not clicking a button
+                                    if (e.target.tagName !== 'BUTTON' && window.__TAURI__) {
+                                        e.preventDefault();
+                                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                                    }
+                                }}>
                                 <div className="header-left">
                                     <h1>ACTIVETOMATO</h1>
                                     <div className="subtitle">
