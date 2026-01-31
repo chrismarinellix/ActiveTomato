@@ -46,7 +46,7 @@
             align-items: center;
         }
 
-        /* Tauri frameless window - draggable area */
+        /* Tauri frameless window styling */
         body.tauri-app {
             background: #f5f5f0 !important;
         }
@@ -58,19 +58,21 @@
             height: 100vh !important;
             border-radius: 0 !important;
             box-shadow: none !important;
-            -webkit-app-region: drag;
         }
-        body.tauri-app .eink-screen button,
-        body.tauri-app .eink-screen input,
-        body.tauri-app .eink-screen select,
-        body.tauri-app .eink-screen a,
-        body.tauri-app .eink-screen .btn,
-        body.tauri-app .eink-screen .mode-tab,
-        body.tauri-app .eink-screen .toggle-item,
-        body.tauri-app .eink-screen .series-btn,
-        body.tauri-app .eink-screen .ambient-slider,
-        body.tauri-app .eink-screen .screen-content {
+        /* Header is the drag region for moving the window */
+        body.tauri-app .header {
+            -webkit-app-region: drag;
+            cursor: grab;
+        }
+        body.tauri-app .header:active {
+            cursor: grabbing;
+        }
+        /* Exclude interactive elements in header from drag */
+        body.tauri-app .header button,
+        body.tauri-app .header a,
+        body.tauri-app .header .logout-btn {
             -webkit-app-region: no-drag;
+            cursor: pointer;
         }
 
         .container {
