@@ -40,33 +40,43 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 document.body.classList.remove('widget-mode');
                 document.body.classList.add('mini-mode');
 
-                // Create drag bar if not exists
-                if (!document.getElementById('drag-bar')) {
-                    const dragBar = document.createElement('div');
-                    dragBar.id = 'drag-bar';
-                    dragBar.innerHTML = '⋮⋮';
-                    dragBar.style.cssText = `
+                // Create window controls (traffic lights + drag area)
+                if (!document.getElementById('window-controls')) {
+                    const controls = document.createElement('div');
+                    controls.id = 'window-controls';
+                    controls.style.cssText = `
                         position: fixed;
                         top: 0;
                         left: 0;
                         right: 0;
-                        height: 20px;
+                        height: 28px;
                         display: flex;
                         align-items: center;
-                        justify-content: center;
-                        font-size: 10px;
-                        color: rgba(0,0,0,0.3);
-                        cursor: grab;
+                        padding: 0 10px;
                         z-index: 9999;
-                        letter-spacing: 2px;
+                        cursor: grab;
                     `;
-                    dragBar.onmousedown = (e) => {
-                        e.preventDefault();
-                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                    controls.innerHTML = `
+                        <div id="traffic-lights" style="display: flex; gap: 6px;">
+                            <div id="btn-close" style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 8px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">✕</div>
+                            <div id="btn-mini" style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 8px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">−</div>
+                            <div id="btn-expand" style="width: 12px; height: 12px; border-radius: 50%; background: #28c840; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 7px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">↗</div>
+                        </div>
+                    `;
+                    controls.onmousedown = (e) => {
+                        if (!e.target.id.startsWith('btn-')) {
+                            e.preventDefault();
+                            window.__TAURI__.window.getCurrentWindow().startDragging();
+                        }
                     };
-                    document.body.appendChild(dragBar);
+                    document.body.appendChild(controls);
+
+                    document.getElementById('btn-close').onclick = () => window.__TAURI__.window.getCurrentWindow().hide();
+                    document.getElementById('btn-mini').onclick = () => window.__TAURI__.core.invoke('set_view_mode', { mode: 2 });
+                    document.getElementById('btn-expand').onclick = () => window.__TAURI__.core.invoke('set_view_mode', { mode: 0 });
                 }
-                document.getElementById('drag-bar').style.display = 'flex';
+                document.getElementById('window-controls').style.display = 'flex';
+                document.getElementById('btn-mini').style.background = '#febc2e';
 
                 if (!document.getElementById('mini-style')) {
                     const style = document.createElement('style');
@@ -172,34 +182,44 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 document.body.classList.remove('mini-mode');
                 document.body.classList.add('widget-mode');
 
-                // Create drag bar if not exists
-                if (!document.getElementById('drag-bar')) {
-                    const dragBar = document.createElement('div');
-                    dragBar.id = 'drag-bar';
-                    dragBar.innerHTML = '⋮⋮⋮';
-                    dragBar.style.cssText = `
+                // Create window controls (traffic lights + drag area)
+                if (!document.getElementById('window-controls')) {
+                    const controls = document.createElement('div');
+                    controls.id = 'window-controls';
+                    controls.style.cssText = `
                         position: fixed;
                         top: 0;
                         left: 0;
                         right: 0;
-                        height: 24px;
+                        height: 28px;
                         display: flex;
                         align-items: center;
-                        justify-content: center;
-                        font-size: 12px;
-                        color: rgba(0,0,0,0.3);
-                        cursor: grab;
+                        padding: 0 12px;
                         z-index: 9999;
-                        letter-spacing: 3px;
-                        background: linear-gradient(to bottom, rgba(245,245,240,1) 0%, rgba(245,245,240,0) 100%);
+                        cursor: grab;
                     `;
-                    dragBar.onmousedown = (e) => {
-                        e.preventDefault();
-                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                    controls.innerHTML = `
+                        <div id="traffic-lights" style="display: flex; gap: 6px;">
+                            <div id="btn-close" style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 8px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">✕</div>
+                            <div id="btn-mini" style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 8px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">−</div>
+                            <div id="btn-expand" style="width: 12px; height: 12px; border-radius: 50%; background: #28c840; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 7px; color: transparent;" onmouseenter="this.style.color='rgba(0,0,0,0.5)'" onmouseleave="this.style.color='transparent'">↗</div>
+                        </div>
+                    `;
+                    controls.onmousedown = (e) => {
+                        if (!e.target.id.startsWith('btn-')) {
+                            e.preventDefault();
+                            window.__TAURI__.window.getCurrentWindow().startDragging();
+                        }
                     };
-                    document.body.appendChild(dragBar);
+                    document.body.appendChild(controls);
+
+                    document.getElementById('btn-close').onclick = () => window.__TAURI__.window.getCurrentWindow().hide();
+                    document.getElementById('btn-mini').onclick = () => window.__TAURI__.core.invoke('set_view_mode', { mode: 2 });
+                    document.getElementById('btn-expand').onclick = () => window.__TAURI__.core.invoke('set_view_mode', { mode: 0 });
                 }
-                document.getElementById('drag-bar').style.display = 'flex';
+                document.getElementById('window-controls').style.display = 'flex';
+                document.getElementById('btn-mini').style.background = '#28c840';
+                document.getElementById('btn-expand').style.background = '#febc2e';
 
                 if (!document.getElementById('widget-style')) {
                     const style = document.createElement('style');
@@ -268,8 +288,8 @@ fn set_view_mode(window: tauri::WebviewWindow, mode: u8) {
                 if (widgetStyle) widgetStyle.remove();
                 const miniStyle = document.getElementById('mini-style');
                 if (miniStyle) miniStyle.remove();
-                const dragBar = document.getElementById('drag-bar');
-                if (dragBar) dragBar.style.display = 'none';
+                const windowControls = document.getElementById('window-controls');
+                if (windowControls) windowControls.style.display = 'none';
             "#);
         }
     }
