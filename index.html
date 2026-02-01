@@ -2105,6 +2105,149 @@
             osc.stop(audioCtx.currentTime + 0.15);
         };
 
+        // ============================================
+        // Voice Cue System - Pre-recorded Audio Files
+        // ============================================
+        const voiceCueSystem = {
+            enabled: true,
+            audioCache: {},
+            currentAudio: null,
+            basePath: 'audio/voice/',
+
+            init() {
+                // Preload common audio files
+                const preloadClips = ['start-focus', 'pause', 'resume', 'complete-focus',
+                    'time-5min', 'time-1min', 'time-30sec', 'time-10sec'];
+                preloadClips.forEach(id => this.preload(id));
+                console.log('Voice cue system ready (pre-recorded audio)');
+            },
+
+            preload(clipId) {
+                if (!this.audioCache[clipId]) {
+                    const audio = new Audio(this.basePath + clipId + '.mp3');
+                    audio.preload = 'auto';
+                    this.audioCache[clipId] = audio;
+                }
+            },
+
+            play(clipId, priority = false) {
+                if (!this.enabled) return;
+
+                // Stop current audio if priority
+                if (priority && this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.currentTime = 0;
+                }
+
+                // Get or create audio element
+                if (!this.audioCache[clipId]) {
+                    this.audioCache[clipId] = new Audio(this.basePath + clipId + '.mp3');
+                }
+
+                const audio = this.audioCache[clipId];
+                audio.currentTime = 0;
+                audio.volume = 0.8;
+                this.currentAudio = audio;
+                audio.play().catch(e => console.log('Voice play blocked:', e));
+            },
+
+            // Legacy speak method for any dynamic text (falls back to Web Speech)
+            speak(text, priority = false) {
+                if (!this.enabled) return;
+
+                // Use Web Speech API for dynamic text
+                if ('speechSynthesis' in window) {
+                    if (priority) speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.1;
+                    utterance.volume = 0.8;
+                    speechSynthesis.speak(utterance);
+                }
+            },
+
+            // Time announcements
+            announceTimeRemaining(seconds, mode) {
+                const mins = Math.floor(seconds / 60);
+
+                if (mins === 20 && seconds % 60 === 0) {
+                    this.play('time-20min');
+                } else if (mins === 15 && seconds % 60 === 0) {
+                    this.play('time-15min');
+                } else if (mins === 10 && seconds % 60 === 0) {
+                    this.play('time-10min');
+                } else if (mins === 5 && seconds % 60 === 0) {
+                    this.play('time-5min');
+                } else if (mins === 2 && seconds % 60 === 0) {
+                    this.play('time-2min');
+                } else if (mins === 1 && seconds % 60 === 0) {
+                    this.play('time-1min');
+                } else if (seconds === 30) {
+                    this.play('time-30sec');
+                } else if (seconds === 10) {
+                    this.play('time-10sec');
+                }
+            },
+
+            announceElapsed(elapsedMins, mode) {
+                if (mode !== 'work') return;
+
+                if (elapsedMins === 5) {
+                    this.play('elapsed-5min');
+                } else if (elapsedMins === 10) {
+                    this.play('elapsed-10min');
+                } else if (elapsedMins === 15) {
+                    this.play('elapsed-15min');
+                } else if (elapsedMins === 20) {
+                    this.play('elapsed-20min');
+                }
+            },
+
+            announceCompletion(mode, points) {
+                if (mode === 'work') {
+                    this.play('complete-focus', true);
+                    // Play points clip after a delay
+                    if (points >= 100) {
+                        setTimeout(() => this.play('points-100'), 2500);
+                    } else if (points >= 50) {
+                        setTimeout(() => this.play('points-50'), 2500);
+                    } else {
+                        setTimeout(() => this.play('points-25'), 2500);
+                    }
+                } else if (mode === 'shortBreak') {
+                    this.play('complete-short-break', true);
+                } else {
+                    this.play('complete-long-break', true);
+                }
+            },
+
+            announceStart(mode) {
+                if (mode === 'work') {
+                    this.play('start-focus', true);
+                } else if (mode === 'shortBreak') {
+                    this.play('start-short-break', true);
+                } else {
+                    this.play('start-long-break', true);
+                }
+            },
+
+            announcePause() {
+                this.play('pause');
+            },
+
+            announceResume() {
+                this.play('resume');
+            },
+
+            announceNudge() {
+                const clips = ['nudge', 'nudge-gentle'];
+                this.play(clips[Math.floor(Math.random() * clips.length)], true);
+            }
+        };
+
+        // Initialize voice system
+        voiceCueSystem.init();
+
         const playReminderSound = (audioCtx, masterGain) => {
             if (!audioCtx) return;
             [880, 1100, 880, 1100].forEach((freq, i) => {
@@ -2574,6 +2717,7 @@
             const [beepInterval, setBeepInterval] = useState(savedPrefs.beepInterval ?? 5); // 1 or 5 minutes
             const [tickSoundEnabled, setTickSoundEnabled] = useState(savedPrefs.tickSoundEnabled ?? false);
             const [tickStyle, setTickStyle] = useState(savedPrefs.tickStyle ?? 'soft');
+            const [voiceCuesEnabled, setVoiceCuesEnabled] = useState(savedPrefs.voiceCuesEnabled ?? true);
 
             // Reminder & Auto-start (load from saved preferences)
             const [reminderEnabled, setReminderEnabled] = useState(savedPrefs.reminderEnabled ?? false);
@@ -2626,6 +2770,7 @@
                     beepInterval,
                     tickSoundEnabled,
                     tickStyle,
+                    voiceCuesEnabled,
                     reminderEnabled,
                     reminderInterval,
                     autoStartEnabled,
@@ -2633,7 +2778,7 @@
                     systemVolume
                 };
                 localStorage.setItem('activetomato-preferences', JSON.stringify(prefs));
-            }, [soundEnabled, intervalSoundEnabled, beepInterval, tickSoundEnabled, tickStyle,
+            }, [soundEnabled, intervalSoundEnabled, beepInterval, tickSoundEnabled, tickStyle, voiceCuesEnabled,
                 reminderEnabled, reminderInterval, autoStartEnabled, autoSeriesEnabled, systemVolume]);
 
             // Initialize WebGL background and orb
@@ -2758,9 +2903,15 @@
                     if (soundEnabled && audioCtxRef.current) {
                         playStartSound(audioCtxRef.current, masterGainRef.current);
                     }
+                    if (voiceCuesEnabled) {
+                        voiceCueSystem.announceStart(mode);
+                    }
                 } else {
                     if (soundEnabled && audioCtxRef.current) {
                         playPauseSound(audioCtxRef.current, masterGainRef.current);
+                    }
+                    if (voiceCuesEnabled) {
+                        voiceCueSystem.announcePause();
                     }
                 }
                 setIsRunning(!isRunning);
@@ -2891,6 +3042,9 @@
                     if (soundEnabled && audioCtxRef.current) {
                         playCompletionSound(audioCtxRef.current, masterGainRef.current);
                     }
+                    if (voiceCuesEnabled) {
+                        setTimeout(() => voiceCueSystem.announceCompletion('work', points), 2500);
+                    }
 
                     // Series mode logic
                     if (seriesTarget > 1) {
@@ -2974,6 +3128,17 @@
 
                             if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
                                 playWarningBeep(audioCtxRef.current, masterGainRef.current);
+                            }
+
+                            // Voice cues for time remaining
+                            if (voiceCuesEnabled) {
+                                voiceCueSystem.announceTimeRemaining(newTime, mode);
+
+                                // Elapsed time announcements
+                                const elapsedMins = Math.floor((durations[mode] - newTime) / 60);
+                                if ((durations[mode] - newTime) % 60 === 0 && elapsedMins > 0) {
+                                    voiceCueSystem.announceElapsed(elapsedMins, mode);
+                                }
                             }
 
                             return newTime;
@@ -3193,6 +3358,10 @@
                                                     {style}
                                                 </button>
                                             ))}
+                                        </div>
+                                        <div className="toggle-item tooltip" data-tooltip="Voice announcements: time remaining, milestones, and session completion" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !voiceCuesEnabled); setVoiceCuesEnabled(!voiceCuesEnabled); if (!voiceCuesEnabled) voiceCueSystem.speak('Voice cues enabled'); }}>
+                                            <div className={`toggle-switch ${voiceCuesEnabled ? 'on' : ''}`} />
+                                            <label>Voice Cues</label>
                                         </div>
                                     </div>
 
