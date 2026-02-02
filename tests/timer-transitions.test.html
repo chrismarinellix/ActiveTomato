@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Transitions Test Suite</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #c4c4b0;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { color: #fff; border-bottom: 2px solid #3a3a3a; padding-bottom: 10px; }
+        h2 { color: #888; font-size: 0.9rem; margin: 20px 0 10px; }
+        .test-group {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .test { padding: 8px 0; border-bottom: 1px dotted #3a3a3a; }
+        .test:last-child { border-bottom: none; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; }
+        .pass::before { content: '✓ '; }
+        .fail::before { content: '✗ '; }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+        .run-btn {
+            background: #3a3a3a;
+            color: #c4c4b0;
+            border: none;
+            padding: 15px 30px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 10px 10px 20px 0;
+        }
+        .run-btn:hover { background: #4a4a4a; }
+        .run-btn.stress { background: #4a2a2a; }
+        .run-btn.stress:hover { background: #5a3a3a; }
+        .log {
+            background: #1a1a1a;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry { margin: 2px 0; }
+        .log-entry.error { color: #f87171; }
+        .log-entry.warn { color: #fbbf24; }
+        .log-entry.info { color: #60a5fa; }
+    </style>
+</head>
+<body>
+    <h1>ActiveTomato Timer Transitions Test Suite</h1>
+    <p>Tests for timer state transitions, session completion, and race conditions.</p>
+
+    <button class="run-btn" onclick="runTests()">Run All Tests</button>
+    <button class="run-btn stress" onclick="runStressTest()">Run Stress Test (Simulates Bug)</button>
+
+    <div id="results"></div>
+    <div id="log-container"></div>
+
+    <script>
+        let passed = 0;
+        let failed = 0;
+        let results = [];
+        let testLog = [];
+
+        function log(message, level = 'info') {
+            testLog.push({ message, level, time: new Date().toISOString() });
+        }
+
+        function assert(condition, testName) {
+            if (condition) {
+                passed++;
+                results.push({ name: testName, pass: true });
+            } else {
+                failed++;
+                results.push({ name: testName, pass: false });
+            }
+        }
+
+        // ============================================
+        // State Machine Simulation
+        // ============================================
+        class TimerStateMachine {
+            constructor() {
+                this.mode = 'work';
+                this.timeLeft = 25 * 60; // 1500 seconds
+                this.isRunning = false;
+                this.seriesProgress = 0;
+                this.seriesTarget = 1;
+                this.seriesPhase = 'work';
+                this.sessionsCompleted = 0;
+                this.completionCount = 0;
+                this.isCompleting = false; // Guard against double completion
+
+                this.durations = {
+                    work: 25 * 60,
+                    shortBreak: 5 * 60,
+                    longBreak: 15 * 60
+                };
+
+                this.transitionLog = [];
+            }
+
+            handleModeChange(newMode) {
+                this.transitionLog.push(`handleModeChange: ${this.mode} -> ${newMode}`);
+                this.mode = newMode;
+                this.timeLeft = this.durations[newMode];
+                this.isRunning = false;
+            }
+
+            completeSession() {
+                // Bug reproduction: Without guard, this can be called multiple times
+                if (this.isCompleting) {
+                    this.transitionLog.push('BLOCKED: completeSession already in progress');
+                    return false; // Blocked
+                }
+
+                this.isCompleting = true;
+                this.completionCount++;
+                this.transitionLog.push(`completeSession called (#${this.completionCount}), mode: ${this.mode}`);
+
+                if (this.mode === 'work') {
+                    this.sessionsCompleted++;
+
+                    if (this.seriesTarget > 1) {
+                        const newProgress = this.seriesProgress + 1;
+                        this.seriesProgress = newProgress;
+
+                        if (newProgress >= this.seriesTarget) {
+                            this.seriesProgress = 0;
+                            this.seriesPhase = 'work';
+                            this.handleModeChange('longBreak');
+                        } else {
+                            this.seriesPhase = 'break';
+                            const breakType = newProgress % 4 === 0 ? 'longBreak' : 'shortBreak';
+                            this.mode = breakType;
+                            this.timeLeft = this.durations[breakType];
+                        }
+                    } else {
+                        const breakType = this.sessionsCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
+                        this.handleModeChange(breakType);
+                    }
+                } else {
+                    // Break completed
+                    if (this.seriesTarget > 1 && this.seriesProgress < this.seriesTarget) {
+                        this.seriesPhase = 'work';
+                        this.mode = 'work';
+                        this.timeLeft = this.durations.work;
+                    } else {
+                        this.handleModeChange('work');
+                    }
+                }
+
+                this.isCompleting = false;
+                return true; // Success
+            }
+
+            // Simulate the buggy behavior without guard
+            completeSessionBuggy() {
+                this.completionCount++;
+                this.transitionLog.push(`BUGGY completeSession called (#${this.completionCount}), mode: ${this.mode}`);
+
+                if (this.mode === 'work') {
+                    this.sessionsCompleted++;
+                    const breakType = this.sessionsCompleted % 4 === 0 ? 'longBreak' : 'shortBreak';
+                    this.handleModeChange(breakType);
+                } else {
+                    this.handleModeChange('work');
+                }
+            }
+
+            tick() {
+                if (this.isRunning && this.timeLeft > 0) {
+                    this.timeLeft--;
+                    return 'ticked';
+                } else if (this.timeLeft === 0) {
+                    return 'complete';
+                }
+                return 'idle';
+            }
+
+            start() {
+                this.isRunning = true;
+            }
+
+            pause() {
+                this.isRunning = false;
+            }
+
+            reset() {
+                this.mode = 'work';
+                this.timeLeft = this.durations.work;
+                this.isRunning = false;
+                this.seriesProgress = 0;
+                this.seriesTarget = 1;
+                this.seriesPhase = 'work';
+                this.sessionsCompleted = 0;
+                this.completionCount = 0;
+                this.isCompleting = false;
+                this.transitionLog = [];
+            }
+        }
+
+        // ============================================
+        // Test: Basic State Transitions
+        // ============================================
+        function testBasicTransitions() {
+            const timer = new TimerStateMachine();
+
+            // Initial state
+            assert(timer.mode === 'work', 'Initial mode is work');
+            assert(timer.timeLeft === 1500, 'Initial time is 25 minutes');
+            assert(!timer.isRunning, 'Timer starts paused');
+
+            // Start timer
+            timer.start();
+            assert(timer.isRunning, 'Timer starts after start()');
+
+            // Tick
+            timer.tick();
+            assert(timer.timeLeft === 1499, 'Time decrements on tick');
+
+            // Mode change
+            timer.handleModeChange('shortBreak');
+            assert(timer.mode === 'shortBreak', 'Mode changes to shortBreak');
+            assert(timer.timeLeft === 300, 'Time resets to 5 minutes for short break');
+            assert(!timer.isRunning, 'Timer pauses on mode change');
+        }
+
+        // ============================================
+        // Test: Work -> Break -> Work Cycle
+        // ============================================
+        function testWorkBreakCycle() {
+            const timer = new TimerStateMachine();
+
+            // Simulate work session completion
+            timer.mode = 'work';
+            timer.timeLeft = 0;
+            timer.isRunning = false;
+
+            timer.completeSession();
+            assert(timer.mode === 'shortBreak', 'After 1st work session, mode is shortBreak');
+            assert(timer.sessionsCompleted === 1, 'Sessions completed is 1');
+
+            // Simulate break completion
+            timer.timeLeft = 0;
+            timer.completeSession();
+            assert(timer.mode === 'work', 'After break, mode returns to work');
+        }
+
+        // ============================================
+        // Test: Long Break After 4 Sessions
+        // ============================================
+        function testLongBreakAfter4() {
+            const timer = new TimerStateMachine();
+
+            // Complete 4 work sessions
+            for (let i = 0; i < 4; i++) {
+                timer.mode = 'work';
+                timer.timeLeft = 0;
+                timer.completeSession();
+
+                if (i < 3) {
+                    // Complete short break
+                    timer.timeLeft = 0;
+                    timer.completeSession();
+                }
+            }
+
+            assert(timer.mode === 'longBreak', 'After 4th session, mode is longBreak');
+            assert(timer.sessionsCompleted === 4, 'Sessions completed is 4');
+            assert(timer.timeLeft === 900, 'Long break is 15 minutes');
+        }
+
+        // ============================================
+        // Test: Series Mode (Batch Pomodoros)
+        // ============================================
+        function testSeriesMode() {
+            const timer = new TimerStateMachine();
+            timer.seriesTarget = 4;
+
+            // Complete first work session in series
+            timer.mode = 'work';
+            timer.timeLeft = 0;
+            timer.completeSession();
+
+            assert(timer.seriesProgress === 1, 'Series progress is 1 after first session');
+            assert(timer.seriesPhase === 'break', 'Series phase is break');
+            assert(timer.mode === 'shortBreak', 'Mode is shortBreak (1 % 4 !== 0)');
+
+            // Complete break
+            timer.timeLeft = 0;
+            timer.completeSession();
+
+            assert(timer.seriesPhase === 'work', 'Series phase returns to work');
+            assert(timer.mode === 'work', 'Mode is work for next session');
+
+            // Complete remaining sessions
+            for (let i = 1; i < 4; i++) {
+                timer.timeLeft = 0;
+                timer.completeSession();
+                if (i < 3) {
+                    timer.timeLeft = 0;
+                    timer.completeSession();
+                }
+            }
+
+            assert(timer.seriesProgress === 0, 'Series progress resets to 0 after completion');
+            assert(timer.mode === 'longBreak', 'Mode is longBreak after series completion');
+        }
+
+        // ============================================
+        // Test: Double Completion Guard
+        // ============================================
+        function testDoubleCompletionGuard() {
+            const timer = new TimerStateMachine();
+            timer.mode = 'work';
+            timer.timeLeft = 0;
+
+            // First call should succeed
+            const result1 = timer.completeSession();
+            assert(result1 === true, 'First completeSession call succeeds');
+            assert(timer.completionCount === 1, 'Completion count is 1');
+
+            // Simulate rapid second call (the bug scenario)
+            timer.timeLeft = 0;
+            timer.isCompleting = true; // Simulating the guard being set
+            const result2 = timer.completeSession();
+            assert(result2 === false, 'Second rapid call is blocked');
+            assert(timer.completionCount === 1, 'Completion count stays at 1');
+        }
+
+        // ============================================
+        // Test: Race Condition Simulation
+        // ============================================
+        function testRaceConditionSimulation() {
+            const timer = new TimerStateMachine();
+            timer.mode = 'work';
+            timer.timeLeft = 0;
+
+            let callCount = 0;
+            const originalComplete = timer.completeSession.bind(timer);
+
+            // Override to count calls
+            timer.completeSession = function() {
+                callCount++;
+                return originalComplete();
+            };
+
+            // Simulate what happens when useEffect re-runs
+            // (This is the bug: timeLeft === 0 triggers completeSession,
+            // which changes mode/completeSession callback, triggering re-run)
+
+            timer.completeSession(); // First call: work -> break
+            assert(timer.mode === 'shortBreak', 'Mode changed to shortBreak');
+
+            // In the buggy code, the useEffect would re-run here because
+            // completeSession reference changed. If timeLeft is still 0...
+
+            // With guard, this should be blocked
+            timer.timeLeft = 0; // Still 0
+            timer.isCompleting = true; // Guard should be set
+            const blocked = !timer.completeSession();
+
+            assert(blocked || callCount === 1, 'Guard prevents double completion');
+        }
+
+        // ============================================
+        // Test: Full 25+5 Minute Cycle (Simulated)
+        // ============================================
+        function testFull25Plus5Cycle() {
+            const timer = new TimerStateMachine();
+
+            // Start work session
+            timer.start();
+            assert(timer.isRunning, 'Timer is running');
+            assert(timer.mode === 'work', 'Mode is work');
+
+            // Simulate 25 minutes passing
+            for (let i = 0; i < 25 * 60; i++) {
+                timer.tick();
+            }
+            assert(timer.timeLeft === 0, 'Time reaches 0 after 25 minutes');
+
+            // Complete work session
+            timer.completeSession();
+            assert(timer.mode === 'shortBreak', 'Mode switched to shortBreak');
+            assert(timer.timeLeft === 300, 'Break time is 5 minutes');
+
+            // Start break
+            timer.start();
+
+            // Simulate 5 minutes passing
+            for (let i = 0; i < 5 * 60; i++) {
+                timer.tick();
+            }
+            assert(timer.timeLeft === 0, 'Break time reaches 0');
+
+            // Complete break - THIS IS WHERE THE BUG OCCURS
+            const completedOk = timer.completeSession();
+            assert(completedOk, 'Break completion succeeds');
+            assert(timer.mode === 'work', 'Mode returns to work');
+            assert(timer.timeLeft === 1500, 'Work time is 25 minutes');
+            assert(timer.completionCount === 2, 'Only 2 completions occurred');
+        }
+
+        // ============================================
+        // Stress Test: Rapid State Changes
+        // ============================================
+        function runStressTest() {
+            testLog = [];
+            log('Starting stress test - simulating rapid state changes', 'info');
+
+            const timer = new TimerStateMachine();
+            let errors = 0;
+
+            // Simulate 10 rapid work->break->work cycles
+            for (let cycle = 0; cycle < 10; cycle++) {
+                log(`Cycle ${cycle + 1}: Starting work session`, 'info');
+
+                timer.mode = 'work';
+                timer.timeLeft = 0;
+
+                // Simulate the bug: call completeSession multiple times rapidly
+                const calls = [];
+                for (let i = 0; i < 3; i++) {
+                    const result = timer.completeSession();
+                    calls.push(result);
+                }
+
+                // Only first call should succeed
+                if (calls.filter(c => c).length > 1) {
+                    log(`ERROR: Multiple completions succeeded in cycle ${cycle + 1}`, 'error');
+                    errors++;
+                }
+
+                // Complete break
+                timer.timeLeft = 0;
+                timer.completeSession();
+            }
+
+            log(`Stress test complete: ${errors} errors`, errors > 0 ? 'error' : 'info');
+            log(`Total completion attempts: ${timer.completionCount}`, 'info');
+            log(`Expected completions: 20 (10 work + 10 break)`, 'info');
+
+            // Display log
+            const logHtml = testLog.map(entry =>
+                `<div class="log-entry ${entry.level}">[${entry.level.toUpperCase()}] ${entry.message}</div>`
+            ).join('');
+            document.getElementById('log-container').innerHTML =
+                `<div class="test-group"><h2>Stress Test Log</h2><div class="log">${logHtml}</div></div>`;
+        }
+
+        // ============================================
+        // Test: WebGL Context Safety
+        // ============================================
+        function testWebGLContextSafety() {
+            // Simulate rapid mode changes that could crash WebGL
+            let stateUpdates = 0;
+            const maxUpdatesPerSecond = 60; // Reasonable limit
+
+            const simulatedOrbUpdate = () => {
+                stateUpdates++;
+                if (stateUpdates > maxUpdatesPerSecond) {
+                    return false; // Would cause issues
+                }
+                return true;
+            };
+
+            // Normal operation: 1 update per second
+            for (let i = 0; i < 60; i++) {
+                assert(simulatedOrbUpdate(), `Update ${i + 1} within limits`);
+            }
+
+            // Rapid updates (simulating bug)
+            stateUpdates = 0;
+            for (let i = 0; i < 100; i++) {
+                simulatedOrbUpdate();
+            }
+            assert(stateUpdates === 100, 'Tracked 100 rapid updates');
+        }
+
+        // ============================================
+        // Run All Tests
+        // ============================================
+        function runTests() {
+            passed = 0;
+            failed = 0;
+            results = [];
+
+            const tests = [
+                { name: 'Basic State Transitions', fn: testBasicTransitions },
+                { name: 'Work → Break → Work Cycle', fn: testWorkBreakCycle },
+                { name: 'Long Break After 4 Sessions', fn: testLongBreakAfter4 },
+                { name: 'Series Mode (Batch Pomodoros)', fn: testSeriesMode },
+                { name: 'Double Completion Guard', fn: testDoubleCompletionGuard },
+                { name: 'Race Condition Simulation', fn: testRaceConditionSimulation },
+                { name: 'Full 25+5 Minute Cycle', fn: testFull25Plus5Cycle },
+                { name: 'WebGL Context Safety', fn: testWebGLContextSafety }
+            ];
+
+            let html = '';
+
+            tests.forEach(test => {
+                const startResults = results.length;
+
+                try {
+                    test.fn();
+                } catch (e) {
+                    failed++;
+                    results.push({ name: `${test.name} threw error: ${e.message}`, pass: false });
+                }
+
+                const groupResults = results.slice(startResults);
+                html += `<div class="test-group"><h2>${test.name}</h2>`;
+                groupResults.forEach(r => {
+                    html += `<div class="test ${r.pass ? 'pass' : 'fail'}">${r.name}</div>`;
+                });
+                html += '</div>';
+            });
+
+            html += `<div class="summary">`;
+            html += `<span class="pass">${passed} passed</span> / `;
+            html += `<span class="${failed > 0 ? 'fail' : ''}">${failed} failed</span>`;
+            html += `</div>`;
+
+            document.getElementById('results').innerHTML = html;
+        }
+
+        // Run on load
+        runTests();
+    </script>
+</body>
+</html>

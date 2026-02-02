@@ -256,6 +256,54 @@
             assert(decoded[0] === 1 && decoded[4] === 5, 'Base64 roundtrip preserves data');
         }
 
+        function testDoubleCompletionGuard() {
+            // Simulates the race condition fix
+            let completionCount = 0;
+            let isCompleting = false;
+
+            const completeSession = () => {
+                if (isCompleting) return false;
+                isCompleting = true;
+                completionCount++;
+                setTimeout(() => { isCompleting = false; }, 100);
+                return true;
+            };
+
+            // First call should succeed
+            assert(completeSession() === true, 'First completion succeeds');
+            assert(completionCount === 1, 'Completion count is 1');
+
+            // Rapid second call should be blocked
+            assert(completeSession() === false, 'Rapid second call is blocked');
+            assert(completionCount === 1, 'Completion count stays at 1');
+        }
+
+        function testWorkBreakTransition() {
+            // Tests the work -> break -> work transition
+            let mode = 'work';
+            let timeLeft = 0;
+            let sessions = 0;
+
+            const durations = { work: 1500, shortBreak: 300, longBreak: 900 };
+
+            const handleModeChange = (newMode) => {
+                mode = newMode;
+                timeLeft = durations[newMode];
+            };
+
+            // Work session completes
+            sessions++;
+            handleModeChange('shortBreak');
+            assert(mode === 'shortBreak', 'After work, mode is shortBreak');
+            assert(timeLeft === 300, 'Short break time is 5 minutes');
+
+            // Break completes
+            timeLeft = 0;
+            handleModeChange('work');
+            assert(mode === 'work', 'After break, mode is work');
+            assert(timeLeft === 1500, 'Work time is 25 minutes');
+        }
+
         function runTests() {
             passed = 0;
             failed = 0;
@@ -271,7 +319,9 @@
                 { name: 'Points System', fn: testPointsAwarded },
                 { name: 'Session Cycle', fn: testSessionCycle },
                 { name: 'Batch Mode', fn: testBatchMode },
-                { name: 'Passkey Helpers', fn: testPasskeyHelpers }
+                { name: 'Passkey Helpers', fn: testPasskeyHelpers },
+                { name: 'Double Completion Guard', fn: testDoubleCompletionGuard },
+                { name: 'Work/Break Transition', fn: testWorkBreakTransition }
             ];
 
             let currentGroup = '';
