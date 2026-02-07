@@ -2113,26 +2113,28 @@
             audioCache: {},
             currentAudio: null,
             basePath: 'audio/voice/',
+            funMode: true, // Enable cheeky/fun voice clips
+
+            // Pick random clip from array
+            randomPick(clips) {
+                return clips[Math.floor(Math.random() * clips.length)];
+            },
+
+            // 50% chance to use fun variant if available
+            maybeUseFun(standard, funVariants) {
+                if (this.funMode && funVariants && Math.random() > 0.5) {
+                    return this.randomPick(funVariants);
+                }
+                return standard;
+            },
 
             init() {
                 // Preload common audio files
                 const preloadClips = ['start-focus', 'pause', 'resume', 'complete-focus',
-                    'time-5min', 'time-1min', 'time-30sec', 'time-10sec'];
+                    'time-5min', 'time-1min', 'time-30sec', 'time-10sec',
+                    'fun-start', 'fun-complete', 'cheeky-1', 'cheeky-2'];
                 preloadClips.forEach(id => this.preload(id));
-
-                // Preload speech synthesis voices
-                if ('speechSynthesis' in window) {
-                    // Voices may not be loaded immediately
-                    if (speechSynthesis.getVoices().length > 0) {
-                        this.getPreferredVoice();
-                    }
-                    speechSynthesis.onvoiceschanged = () => {
-                        this.preferredVoice = null; // Reset to reselect
-                        this.getPreferredVoice();
-                    };
-                }
-
-                console.log('Voice cue system ready (pre-recorded audio + speech synthesis)');
+                console.log('Voice cue system ready (pre-recorded audio with fun mode)');
             },
 
             preload(clipId) {
@@ -2164,143 +2166,65 @@
                 audio.play().catch(e => console.log('Voice play blocked:', e));
             },
 
-            // Preferred female voice (cached after first lookup)
-            preferredVoice: null,
-
-            // Find a female voice - prefer natural/premium voices
-            getPreferredVoice() {
-                if (this.preferredVoice) return this.preferredVoice;
-
-                const voices = speechSynthesis.getVoices();
-                // Priority: Samantha, Zira, female Google voices, any female
-                const femaleKeywords = ['samantha', 'zira', 'victoria', 'karen', 'moira', 'tessa', 'fiona', 'female', 'woman'];
-                const premiumKeywords = ['natural', 'premium', 'enhanced', 'neural'];
-
-                // First try premium female voices
-                let voice = voices.find(v => {
-                    const name = v.name.toLowerCase();
-                    return femaleKeywords.some(k => name.includes(k)) && premiumKeywords.some(k => name.includes(k));
-                });
-
-                // Then try any female voice
-                if (!voice) {
-                    voice = voices.find(v => {
-                        const name = v.name.toLowerCase();
-                        return femaleKeywords.some(k => name.includes(k));
-                    });
-                }
-
-                // Fallback: avoid obviously male voices
-                if (!voice) {
-                    const maleKeywords = ['david', 'james', 'mark', 'daniel', 'male', 'guy'];
-                    voice = voices.find(v => !maleKeywords.some(k => v.name.toLowerCase().includes(k)));
-                }
-
-                this.preferredVoice = voice || voices[0];
-                console.log('Selected voice:', this.preferredVoice?.name);
-                return this.preferredVoice;
-            },
-
-            // Speak method with sultry female voice
+            // Legacy speak method for any dynamic text (falls back to Web Speech)
             speak(text, priority = false) {
                 if (!this.enabled) return;
 
+                // Use Web Speech API for dynamic text
                 if ('speechSynthesis' in window) {
                     if (priority) speechSynthesis.cancel();
-
                     const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.voice = this.getPreferredVoice();
-                    utterance.rate = 0.88;      // Slightly slower, more deliberate
-                    utterance.pitch = 0.95;     // Slightly lower, warmer tone
-                    utterance.volume = 0.85;
-
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.1;
+                    utterance.volume = 0.8;
                     speechSynthesis.speak(utterance);
                 }
             },
 
-            // Time announcements - more frequent for better awareness
+            // Time announcements
             announceTimeRemaining(seconds, mode) {
                 const mins = Math.floor(seconds / 60);
-                const isBreak = mode === 'shortBreak' || mode === 'longBreak';
 
-                // Work session announcements
-                if (!isBreak) {
-                    if (mins === 20 && seconds % 60 === 0) {
-                        this.play('time-20min');
-                    } else if (mins === 15 && seconds % 60 === 0) {
-                        this.play('time-15min');
-                    } else if (mins === 10 && seconds % 60 === 0) {
-                        this.play('time-10min');
-                    } else if (mins === 5 && seconds % 60 === 0) {
-                        this.play('time-5min');
-                    } else if (mins === 2 && seconds % 60 === 0) {
-                        this.play('time-2min');
-                    } else if (mins === 1 && seconds % 60 === 0) {
-                        this.play('time-1min');
-                    } else if (seconds === 30) {
-                        this.play('time-30sec');
-                    } else if (seconds === 10) {
-                        this.play('time-10sec');
-                    }
-                } else {
-                    // Break announcements - more frequent for short breaks
-                    if (mins === 4 && seconds % 60 === 0) {
-                        this.speak('4 minutes left in your break');
-                    } else if (mins === 3 && seconds % 60 === 0) {
-                        this.speak('3 minutes remaining');
-                    } else if (mins === 2 && seconds % 60 === 0) {
-                        this.speak('2 minutes left, start wrapping up');
-                    } else if (mins === 1 && seconds % 60 === 0) {
-                        this.speak('1 minute remaining');
-                    } else if (seconds === 30) {
-                        this.speak('30 seconds');
-                    } else if (seconds === 10) {
-                        this.speak('10 seconds, get ready');
-                    }
-                    // Long break specific
-                    if (mode === 'longBreak') {
-                        if (mins === 10 && seconds % 60 === 0) {
-                            this.speak('10 minutes left in your long break');
-                        } else if (mins === 5 && seconds % 60 === 0) {
-                            this.speak('5 minutes remaining');
-                        }
-                    }
+                if (mins === 20 && seconds % 60 === 0) {
+                    this.play('time-20min');
+                } else if (mins === 15 && seconds % 60 === 0) {
+                    // Halfway! Use fun variant sometimes
+                    this.play(this.maybeUseFun('time-15min', ['fun-halfway']));
+                } else if (mins === 10 && seconds % 60 === 0) {
+                    this.play('time-10min');
+                } else if (mins === 5 && seconds % 60 === 0) {
+                    // 5 min left - maybe motivational
+                    this.play(this.maybeUseFun('time-5min', ['fun-almost', 'motivate-3']));
+                } else if (mins === 2 && seconds % 60 === 0) {
+                    this.play('time-2min');
+                } else if (mins === 1 && seconds % 60 === 0) {
+                    this.play('time-1min');
+                } else if (seconds === 30) {
+                    this.play('time-30sec');
+                } else if (seconds === 10) {
+                    this.play('time-10sec');
                 }
             },
 
             announceElapsed(elapsedMins, mode) {
-                const isBreak = mode === 'shortBreak' || mode === 'longBreak';
+                if (mode !== 'work') return;
 
-                if (!isBreak) {
-                    // Work session elapsed announcements
-                    if (elapsedMins === 5) {
-                        this.play('elapsed-5min');
-                    } else if (elapsedMins === 10) {
-                        this.play('elapsed-10min');
-                    } else if (elapsedMins === 15) {
-                        this.play('elapsed-15min');
-                    } else if (elapsedMins === 20) {
-                        this.play('elapsed-20min');
-                    }
-                } else {
-                    // Break elapsed announcements
-                    if (elapsedMins === 1) {
-                        this.speak('1 minute into your break');
-                    } else if (elapsedMins === 2) {
-                        this.speak('2 minutes in, relax and recharge');
-                    } else if (elapsedMins === 3 && mode === 'shortBreak') {
-                        this.speak('Halfway through your break');
-                    } else if (elapsedMins === 5 && mode === 'longBreak') {
-                        this.speak('5 minutes into your long break');
-                    } else if (elapsedMins === 10 && mode === 'longBreak') {
-                        this.speak('10 minutes in, 5 more to go');
-                    }
+                if (elapsedMins === 5) {
+                    this.play('elapsed-5min');
+                } else if (elapsedMins === 10) {
+                    // 10 min milestone - motivational variant
+                    this.play(this.maybeUseFun('elapsed-10min', ['motivate-1', 'motivate-2']));
+                } else if (elapsedMins === 15) {
+                    this.play('elapsed-15min');
+                } else if (elapsedMins === 20) {
+                    this.play('elapsed-20min');
                 }
             },
 
             announceCompletion(mode, points) {
                 if (mode === 'work') {
-                    this.play('complete-focus', true);
+                    // Fun completion messages
+                    this.play(this.maybeUseFun('complete-focus', ['fun-complete']), true);
                     // Play points clip after a delay
                     if (points >= 100) {
                         setTimeout(() => this.play('points-100'), 2500);
@@ -2310,7 +2234,7 @@
                         setTimeout(() => this.play('points-25'), 2500);
                     }
                 } else if (mode === 'shortBreak') {
-                    this.play('complete-short-break', true);
+                    this.play(this.maybeUseFun('complete-short-break', ['sassy-3']), true);
                 } else {
                     this.play('complete-long-break', true);
                 }
@@ -2318,16 +2242,24 @@
 
             announceStart(mode) {
                 if (mode === 'work') {
-                    this.play('start-focus', true);
+                    // Fun start messages
+                    this.play(this.maybeUseFun('start-focus', ['fun-start', 'motivate-3']), true);
                 } else if (mode === 'shortBreak') {
-                    this.play('start-short-break', true);
+                    this.play(this.maybeUseFun('start-short-break', ['fun-break']), true);
                 } else {
                     this.play('start-long-break', true);
                 }
             },
 
             announcePause() {
-                this.play('pause');
+                // Sassy pause messages
+                this.play(this.maybeUseFun('pause', ['sassy-1']));
+            },
+
+            // Random cheeky reminder (can be called during idle)
+            announceCheekyReminder() {
+                const cheeky = ['cheeky-1', 'cheeky-2', 'cheeky-3', 'cheeky-4', 'cheeky-5'];
+                this.play(this.randomPick(cheeky), true);
             },
 
             announceResume() {
@@ -2835,7 +2767,6 @@
             const orbCanvasRef = useRef(null);
             const orbRef = useRef(null);
             const masterGainRef = useRef(null);
-            const completingRef = useRef(false); // Guard against double completion
             const [systemVolume, setSystemVolume] = useState(savedPrefs.systemVolume ?? 0.5);
 
             const durations = { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 };
@@ -2910,27 +2841,6 @@
                     webglBg.setTimerState(isRunning, (durations[mode] - timeLeft) / durations[mode]);
                 }
             }, [isRunning, timeLeft, mode]);
-
-            // Handle tab visibility changes (prevents issues during long sessions)
-            useEffect(() => {
-                const handleVisibilityChange = () => {
-                    if (document.hidden) {
-                        // Tab is hidden - WebGL may be throttled
-                        console.log('Tab hidden, WebGL may pause');
-                    } else {
-                        // Tab is visible again - ensure WebGL is running
-                        console.log('Tab visible, resuming WebGL');
-                        if (orbRef.current) {
-                            // Refresh orb state
-                            orbRef.current.setRunning(isRunning);
-                            orbRef.current.setProgress((durations[mode] - timeLeft) / durations[mode]);
-                        }
-                    }
-                };
-
-                document.addEventListener('visibilitychange', handleVisibilityChange);
-                return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-            }, [isRunning, mode, timeLeft]);
 
             // Handle system volume changes
             const handleSystemVolumeChange = (vol) => {
@@ -3125,16 +3035,6 @@
             }, [reminderEnabled, reminderInterval, isRunning, autoStartEnabled]);
 
             const completeSession = useCallback(() => {
-                // Guard against double completion from useEffect re-runs
-                if (completingRef.current) {
-                    console.log('completeSession blocked: already completing');
-                    return;
-                }
-                completingRef.current = true;
-
-                // Reset guard after state updates settle
-                setTimeout(() => { completingRef.current = false; }, 100);
-
                 if (mode === 'work') {
                     const points = 25;
                     setTotalPoints(prev => {
@@ -3271,7 +3171,7 @@
                             return newTime;
                         });
                     }, 1000);
-                } else if (timeLeft === 0 && !completingRef.current) {
+                } else if (timeLeft === 0) {
                     completeSession();
                 }
 
