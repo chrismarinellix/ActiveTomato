@@ -1,0 +1,3796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ActiveTomato - E-Ink Pomodoro Timer</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        @media (max-width: 600px) {
+            html, body {
+                overflow: auto;
+                height: auto;
+            }
+        }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #151515 50%, #0a0a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Tauri frameless window styling */
+        body.tauri-app {
+            background: #f5f5f0 !important;
+        }
+        body.tauri-app .container {
+            padding: 0 !important;
+        }
+        body.tauri-app .eink-screen {
+            max-width: 100% !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+        /* Header is the drag region for moving the window */
+        body.tauri-app .header {
+            -webkit-app-region: drag;
+            cursor: grab;
+        }
+        body.tauri-app .header:active {
+            cursor: grabbing;
+        }
+        /* Exclude interactive elements in header from drag */
+        body.tauri-app .header button,
+        body.tauri-app .header a,
+        body.tauri-app .header .logout-btn {
+            -webkit-app-region: no-drag;
+            cursor: pointer;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        /* Modern E-Ink Display - Kindle Paperwhite / Boox style */
+        .eink-screen {
+            background: #f5f5f0;
+            border-radius: 3px;
+            padding: 35px 50px;
+            width: 100%;
+            max-width: 1400px;
+            height: 95vh;
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.08),
+                0 25px 80px rgba(0,0,0,0.5),
+                0 0 0 8px #1a1a1a,
+                0 0 0 10px #0a0a0a;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Subtle paper texture */
+        .eink-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.3) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .screen-content {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .screen-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header-left h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: 4px;
+        }
+
+        .header-left .subtitle {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 25px;
+        }
+
+        .stat-box {
+            text-align: right;
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .level-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            font-size: 0.65rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            border-radius: 2px;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 0;
+        }
+
+        /* Series selector */
+        .series-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 3px;
+        }
+
+        .series-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .series-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .series-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border: 1px solid rgba(0,0,0,0.15);
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.15s ease;
+        }
+
+        .series-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
+        .series-btn:hover:not(.active) {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .series-progress {
+            display: flex;
+            gap: 6px;
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .series-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .series-dot.completed {
+            background: #1a1a1a;
+        }
+
+        .series-dot.current {
+            background: transparent;
+            border: 2px solid #1a1a1a;
+            animation: pulse 1.5s infinite;
+        }
+
+        .series-dot.break {
+            width: 6px;
+            height: 6px;
+            margin: 2px 0;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .series-dot.break.completed {
+            background: #666;
+        }
+
+        /* Mode tabs */
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .mode-tab {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 12px 30px;
+            border: none;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.15s ease;
+            border-right: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .mode-tab:last-child {
+            border-right: none;
+        }
+
+        .mode-tab.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .mode-tab:hover:not(.active) {
+            background: rgba(0,0,0,0.04);
+        }
+
+        /* Timer Display - High Definition */
+        .timer-display {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timer-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+        }
+
+        .timer-digits {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16rem;
+            font-weight: 700;
+            color: #0a0a0a;
+            letter-spacing: -5px;
+            line-height: 0.85;
+            text-rendering: geometricPrecision;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .timer-digits.warning {
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0.4; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        @keyframes subtleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(100, 100, 100, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(100, 100, 100, 0.2); }
+        }
+
+        .timer-progress {
+            width: 100%;
+            max-width: 600px;
+            height: 4px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 2px;
+            margin: 30px auto 0;
+            overflow: hidden;
+        }
+
+        .timer-progress-bar {
+            height: 100%;
+            background: #1a1a1a;
+            transition: width 1s linear;
+        }
+
+        .interval-indicator {
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #999;
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 14px 45px;
+            border: 1px solid #1a1a1a;
+            background: transparent;
+            color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .btn.primary {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn.primary:hover {
+            background: #2a2a2a;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn.primary:active {
+            transform: translateY(0);
+        }
+
+        /* Toggle panels */
+        .toggle-panels {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 20px 0;
+            padding: 20px 30px;
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toggle-group-label {
+            font-size: 0.6rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .toggle-item label {
+            font-size: 0.7rem;
+            color: #555;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-switch {
+            width: 38px;
+            height: 20px;
+            background: rgba(0,0,0,0.12);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch.on {
+            background: #1a1a1a;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #f5f5f0;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+
+        .toggle-switch.on::after {
+            left: 20px;
+        }
+
+        /* Reminder settings */
+        .reminder-settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            padding-left: 48px;
+        }
+
+        .reminder-select {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 2px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .reminder-label {
+            font-size: 0.65rem;
+            color: #888;
+        }
+
+        /* Tick style selector */
+        .tick-style-selector {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            padding-left: 48px;
+        }
+
+        .tick-style-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            padding: 4px 10px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 2px;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            text-transform: capitalize;
+            transition: all 0.15s ease;
+        }
+
+        .tick-style-btn:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .tick-style-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
+        .tick-style-selector.disabled {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .tick-style-btn:disabled {
+            cursor: default;
+        }
+
+        /* Activity Section - compact */
+        .activity-section {
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .activity-title {
+            font-size: 0.55rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .activity-stats {
+            font-size: 0.55rem;
+            color: #888;
+        }
+
+        .activity-grid {
+            display: grid;
+            grid-template-columns: repeat(52, 1fr);
+            gap: 2px;
+            margin-bottom: 6px;
+        }
+
+        .activity-week {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .activity-day {
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(0,0,0,0.05);
+            border-radius: 0;
+            cursor: pointer;
+        }
+
+        .activity-day:hover {
+            opacity: 0.7;
+        }
+
+        /* Shaded levels - not solid */
+        .activity-day.level-1 { background: rgba(0,0,0,0.12); }
+        .activity-day.level-2 { background: rgba(0,0,0,0.22); }
+        .activity-day.level-3 { background: rgba(0,0,0,0.35); }
+        .activity-day.level-4 { background: rgba(0,0,0,0.55); }
+
+        .activity-day.today {
+            background: rgba(0,0,0,0.15);
+        }
+        .activity-day.today.level-1 { background: rgba(0,0,0,0.18); }
+        .activity-day.today.level-2 { background: rgba(0,0,0,0.28); }
+        .activity-day.today.level-3 { background: rgba(0,0,0,0.42); }
+        .activity-day.today.level-4 { background: rgba(0,0,0,0.65); }
+
+        .activity-legend {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.5rem;
+            color: #999;
+        }
+
+        .legend-box {
+            width: 8px;
+            height: 8px;
+            border-radius: 0;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            color: #f5f5f0;
+            padding: 15px 35px;
+            border-radius: 3px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-15px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Today's log */
+        .today-log {
+            margin-top: 15px;
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.02);
+            border-radius: 3px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .today-log-title {
+            font-size: 0.65rem;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .log-entry {
+            font-size: 0.7rem;
+            color: #555;
+            padding: 3px 0;
+        }
+
+        .log-time { color: #999; }
+
+        /* Auth UI */
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 30px;
+        }
+
+        .auth-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: 6px;
+        }
+
+        .auth-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: -20px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .auth-input {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            padding: 14px 18px;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 3px;
+            background: #fff;
+            color: #1a1a1a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus {
+            border-color: #1a1a1a;
+        }
+
+        .auth-input::placeholder {
+            color: #999;
+        }
+
+        .auth-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 14px 25px;
+            border: 1px solid #1a1a1a;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            cursor: pointer;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.15s ease;
+        }
+
+        .auth-btn:hover {
+            background: #2a2a2a;
+        }
+
+        .auth-btn.secondary {
+            background: transparent;
+            color: #1a1a1a;
+        }
+
+        .auth-btn.secondary:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .auth-toggle {
+            font-size: 0.75rem;
+            color: #666;
+            text-align: center;
+        }
+
+        .auth-toggle a {
+            color: #1a1a1a;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .auth-error {
+            font-size: 0.75rem;
+            color: #c00;
+            text-align: center;
+            padding: 10px;
+            background: rgba(200,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #999;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-email {
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .logout-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.65rem;
+            padding: 6px 12px;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.15s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: #1a1a1a;
+        }
+
+        .sync-indicator {
+            font-size: 0.6rem;
+            color: #999;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 10px;
+            padding: 3px 8px;
+            background: rgba(0,0,0,0.04);
+            border-radius: 3px;
+        }
+
+        .sync-indicator .sync-icon {
+            font-size: 0.7rem;
+        }
+
+        .sync-indicator.connected {
+            color: #4a4;
+        }
+
+        .sync-indicator.error {
+            color: #a44;
+            background: rgba(170,68,68,0.1);
+        }
+
+        .sync-indicator.connecting {
+            color: #aa4;
+        }
+
+        .sync-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4a4;
+        }
+
+        .sync-dot.syncing {
+            background: #888;
+            animation: pulse 1s infinite;
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: #1a1a1a;
+            color: #f5f5f0;
+            font-size: 0.65rem;
+            border-radius: 3px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Compact mode for single screen */
+        .eink-screen.compact {
+            padding: 25px 40px;
+        }
+
+        .compact .header {
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+
+        .compact .main-content {
+            padding: 10px 0;
+        }
+
+        .compact .series-selector {
+            margin-bottom: 15px;
+            padding: 8px 15px;
+        }
+
+        .compact .mode-tabs {
+            margin-bottom: 15px;
+        }
+
+        .compact .timer-display {
+            margin: 10px 0;
+        }
+
+        .compact .timer-digits {
+            font-size: 12rem;
+        }
+
+        .compact .timer-progress {
+            margin-top: 15px;
+        }
+
+        .compact .controls {
+            margin: 15px 0;
+        }
+
+        .compact .toggle-panels {
+            margin: 10px 0;
+            padding: 12px 20px;
+            gap: 30px;
+        }
+
+        .compact .toggle-group {
+            gap: 8px;
+        }
+
+        .compact .activity-section {
+            padding-top: 12px;
+        }
+
+        .compact .today-log {
+            max-height: 60px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .timer-digits { font-size: 12rem; }
+            .compact .timer-digits { font-size: 12rem; }
+        }
+
+        @media (max-width: 900px) {
+            .timer-digits { font-size: 9rem; }
+            .compact .timer-digits { font-size: 9rem; }
+            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .header-right { justify-content: center; }
+            .toggle-panels { flex-wrap: wrap; gap: 20px; justify-content: center; }
+            .series-selector { flex-wrap: wrap; justify-content: center; }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 8px;
+                height: auto;
+                min-height: 100vh;
+            }
+            .eink-screen {
+                padding: 15px 12px;
+                height: auto;
+                min-height: auto;
+                overflow: visible;
+            }
+            .header-left h1 { font-size: 1.2rem; letter-spacing: 2px; }
+            .header-left .subtitle {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.6rem;
+            }
+            .sync-indicator {
+                font-size: 0.5rem;
+                padding: 2px 6px;
+                margin-left: 5px;
+            }
+            .header-right { gap: 15px; }
+            .stat-value { font-size: 1.1rem; }
+            .level-badge { font-size: 0.55rem; padding: 3px 8px; }
+            .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .compact .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .timer-label { font-size: 0.7rem; }
+            .controls { flex-direction: row; gap: 10px; }
+            .btn { padding: 12px 25px; font-size: 0.75rem; }
+            .series-selector {
+                padding: 10px;
+                gap: 10px;
+                flex-direction: column;
+                align-items: center;
+            }
+            .series-label { margin-bottom: 5px; }
+            .series-buttons { flex-wrap: wrap; justify-content: center; gap: 6px; }
+            .series-btn { padding: 6px 12px; font-size: 0.7rem; }
+            .series-progress {
+                margin-left: 0;
+                padding-left: 0;
+                border-left: none;
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid rgba(0,0,0,0.1);
+            }
+            .mode-tabs { margin-bottom: 15px; }
+            .mode-tab { padding: 10px 12px; font-size: 0.6rem; letter-spacing: 1px; }
+            .toggle-panels {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            .toggle-group {
+                width: 100%;
+                padding-bottom: 12px;
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+            }
+            .toggle-group:last-child { border-bottom: none; padding-bottom: 0; }
+            .toggle-group-label { font-size: 0.55rem; }
+            .toggle-item label { font-size: 0.65rem; }
+            .toggle-switch { width: 34px; height: 18px; }
+            .toggle-switch::after { width: 14px; height: 14px; }
+            .toggle-switch.on::after { left: 18px; }
+            .tick-style-selector {
+                padding-left: 44px;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .tick-style-btn { padding: 3px 8px; font-size: 0.55rem; }
+            .reminder-settings { padding-left: 44px; }
+            .reminder-select { font-size: 0.65rem; padding: 4px 8px; }
+            .activity-section { padding-top: 15px; }
+            .activity-header { margin-bottom: 8px; }
+            .activity-title { font-size: 0.65rem; }
+            .activity-stats { font-size: 0.6rem; }
+            .activity-grid {
+                gap: 2px;
+                grid-template-columns: repeat(16, 1fr);
+            }
+            /* Hide all but last 16 weeks on mobile */
+            .activity-week:nth-child(-n+36) {
+                display: none;
+            }
+            .activity-week {
+                min-width: 10px;
+            }
+            .activity-day {
+                border-radius: 1px;
+                min-width: 10px;
+                min-height: 10px;
+            }
+            .activity-legend { font-size: 0.5rem; gap: 2px; }
+            .legend-box { width: 10px; height: 10px; }
+            .today-log { padding: 10px; max-height: 80px; }
+            .today-log-title { font-size: 0.55rem; }
+            .log-entry { font-size: 0.6rem; }
+
+            /* Compact class overrides for mobile */
+            .eink-screen.compact {
+                padding: 15px 12px;
+                height: auto;
+                min-height: 100vh;
+                overflow-y: auto;
+            }
+            .compact .timer-display { margin: 8px 0; }
+            .compact .timer-digits { font-size: 4.5rem; letter-spacing: -2px; }
+            .compact .toggle-panels {
+                padding: 15px;
+                gap: 15px;
+            }
+            .compact .activity-section { padding-top: 15px; }
+            .compact .activity-grid {
+                grid-template-columns: repeat(16, 1fr);
+            }
+            .compact .activity-week:nth-child(-n+36) {
+                display: none;
+            }
+            .compact .today-log { max-height: 80px; }
+        }
+
+        @media (max-width: 380px) {
+            .timer-digits { font-size: 3.5rem; }
+            .compact .timer-digits { font-size: 3.5rem; }
+            .eink-screen.compact { padding: 10px 8px; }
+            .header-right { flex-wrap: wrap; gap: 10px; }
+            .stat-box { min-width: 60px; }
+        }
+
+        /* WebGL Background Canvas */
+        #webgl-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Glassmorphism Enhancements */
+        .eink-screen {
+            background: rgba(245, 245, 240, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.05),
+                0 25px 80px rgba(0,0,0,0.4),
+                0 0 0 8px rgba(26,26,26,0.9),
+                0 0 0 10px rgba(10,10,10,0.95),
+                inset 0 0 80px rgba(255,255,255,0.1);
+        }
+
+        /* Timer Orb Container */
+        .timer-orb-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #timer-orb-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        .timer-orb-overlay {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .timer-orb-overlay .timer-digits {
+            font-size: 4rem;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .timer-orb-overlay .timer-label {
+            font-size: 0.7rem;
+            margin-bottom: 8px;
+        }
+
+        /* Ambient Sound Controls */
+        .ambient-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .ambient-label {
+            font-size: 0.65rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-width: 60px;
+        }
+
+        .ambient-slider-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ambient-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 4px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .ambient-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .ambient-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        .ambient-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .ambient-volume-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: #555;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .ambient-mode-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .ambient-mode-btn {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            padding: 5px 10px;
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 3px;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: capitalize;
+        }
+
+        .ambient-mode-btn:hover {
+            background: rgba(0,0,0,0.04);
+        }
+
+        .ambient-mode-btn.active {
+            background: #1a1a1a;
+            color: #f5f5f0;
+            border-color: #1a1a1a;
+        }
+
+        /* Glow effects for running timer */
+        .timer-orb-container.running #timer-orb-canvas {
+            filter: drop-shadow(0 0 30px rgba(100, 100, 100, 0.3));
+        }
+
+        .timer-orb-container.paused #timer-orb-canvas {
+            filter: drop-shadow(0 0 15px rgba(100, 100, 100, 0.15));
+        }
+
+        /* Enhanced button transitions */
+        .btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        /* Responsive adjustments for orb */
+        @media (max-width: 900px) {
+            .timer-orb-container {
+                width: 220px;
+                height: 220px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 3.2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .timer-orb-container {
+                width: 180px;
+                height: 180px;
+                margin-bottom: 15px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 2.5rem;
+            }
+            .timer-orb-overlay .timer-label {
+                font-size: 0.6rem;
+            }
+            .ambient-controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .ambient-slider-container {
+                order: 2;
+            }
+            .ambient-mode-buttons {
+                order: 1;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .timer-orb-container {
+                width: 150px;
+                height: 150px;
+            }
+            .timer-orb-overlay .timer-digits {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-bg"></canvas>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://gejfhkkxossxpodcgrzi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlamZoa2t4b3NzeHBvZGNncnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyOTMzODgsImV4cCI6MjA4Mzg2OTM4OH0.iFFEKW7FJITWkMVcb-2e0iJE_0I8qAxuwaey9iWTw88';
+
+        // Check if Supabase is properly configured
+        const isSupabaseConfigured = SUPABASE_URL !== 'https://your-project.supabase.co' && SUPABASE_ANON_KEY !== 'your-anon-key';
+
+        // Initialize Supabase client only if configured
+        const supabase = (window.supabase && isSupabaseConfigured) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        // ============================================
+        // WebGPU/WebGL Background - Particle Field
+        // ============================================
+        const isWebGPUSupported = () => {
+            return 'gpu' in navigator;
+        };
+
+        // Native WebGPU Particle System
+        const initWebGPUParticles = async (canvas) => {
+            if (!navigator.gpu) return null;
+
+            try {
+                const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+                if (!adapter) return null;
+
+                const device = await adapter.requestDevice();
+                const context = canvas.getContext('webgpu');
+                const format = navigator.gpu.getPreferredCanvasFormat();
+
+                context.configure({
+                    device,
+                    format,
+                    alphaMode: 'premultiplied',
+                });
+
+                const particleCount = 1000;
+                const particleData = new Float32Array(particleCount * 4); // x, y, z, size
+                const velocityData = new Float32Array(particleCount * 3);
+
+                for (let i = 0; i < particleCount; i++) {
+                    particleData[i * 4] = (Math.random() - 0.5) * 2;
+                    particleData[i * 4 + 1] = (Math.random() - 0.5) * 2;
+                    particleData[i * 4 + 2] = Math.random() * 0.5;
+                    particleData[i * 4 + 3] = Math.random() * 0.003 + 0.001;
+                    velocityData[i * 3] = (Math.random() - 0.5) * 0.0005;
+                    velocityData[i * 3 + 1] = (Math.random() - 0.5) * 0.0005;
+                    velocityData[i * 3 + 2] = 0;
+                }
+
+                const particleBuffer = device.createBuffer({
+                    size: particleData.byteLength,
+                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                });
+                device.queue.writeBuffer(particleBuffer, 0, particleData);
+
+                const shaderCode = `
+                    struct Uniforms {
+                        time: f32,
+                        running: f32,
+                        aspect: f32,
+                    }
+                    @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+                    struct VertexOutput {
+                        @builtin(position) position: vec4f,
+                        @location(0) alpha: f32,
+                    }
+
+                    @vertex
+                    fn vertexMain(@location(0) pos: vec4f) -> VertexOutput {
+                        var output: VertexOutput;
+                        let pulse = sin(uniforms.time * 0.5 + pos.x * 10.0) * 0.1 + 1.0;
+                        let size = pos.w * pulse * (1.0 + uniforms.running * 0.5);
+
+                        output.position = vec4f(
+                            pos.x / uniforms.aspect + sin(uniforms.time * 0.2 + pos.y * 5.0) * 0.02,
+                            pos.y + cos(uniforms.time * 0.15 + pos.x * 5.0) * 0.02,
+                            pos.z,
+                            1.0
+                        );
+                        output.alpha = 0.15 + uniforms.running * 0.15 + sin(uniforms.time + pos.x * 20.0) * 0.05;
+                        return output;
+                    }
+
+                    @fragment
+                    fn fragmentMain(@location(0) alpha: f32) -> @location(0) vec4f {
+                        return vec4f(0.3, 0.3, 0.3, alpha);
+                    }
+                `;
+
+                const shaderModule = device.createShaderModule({ code: shaderCode });
+
+                const uniformBuffer = device.createBuffer({
+                    size: 16,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                });
+
+                const bindGroupLayout = device.createBindGroupLayout({
+                    entries: [{
+                        binding: 0,
+                        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                        buffer: { type: 'uniform' }
+                    }]
+                });
+
+                const bindGroup = device.createBindGroup({
+                    layout: bindGroupLayout,
+                    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }]
+                });
+
+                const pipeline = device.createRenderPipeline({
+                    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vertexMain',
+                        buffers: [{
+                            arrayStride: 16,
+                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' }]
+                        }]
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fragmentMain',
+                        targets: [{
+                            format,
+                            blend: {
+                                color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                                alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                            }
+                        }]
+                    },
+                    primitive: { topology: 'point-list' }
+                });
+
+                let isRunning = false;
+                let animationId;
+                const startTime = performance.now();
+
+                const render = () => {
+                    const time = (performance.now() - startTime) / 1000;
+                    const aspect = canvas.width / canvas.height;
+
+                    device.queue.writeBuffer(uniformBuffer, 0, new Float32Array([time, isRunning ? 1 : 0, aspect, 0]));
+
+                    const commandEncoder = device.createCommandEncoder();
+                    const textureView = context.getCurrentTexture().createView();
+
+                    const renderPass = commandEncoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: textureView,
+                            clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                            loadOp: 'clear',
+                            storeOp: 'store'
+                        }]
+                    });
+
+                    renderPass.setPipeline(pipeline);
+                    renderPass.setBindGroup(0, bindGroup);
+                    renderPass.setVertexBuffer(0, particleBuffer);
+                    renderPass.draw(particleCount);
+                    renderPass.end();
+
+                    device.queue.submit([commandEncoder.finish()]);
+                    animationId = requestAnimationFrame(render);
+                };
+
+                const handleResize = () => {
+                    canvas.width = window.innerWidth * Math.min(window.devicePixelRatio, 2);
+                    canvas.height = window.innerHeight * Math.min(window.devicePixelRatio, 2);
+                };
+                handleResize();
+                window.addEventListener('resize', handleResize);
+                render();
+
+                console.log('WebGPU particles initialized');
+
+                return {
+                    setTimerState: (running) => { isRunning = running; },
+                    destroy: () => {
+                        cancelAnimationFrame(animationId);
+                        window.removeEventListener('resize', handleResize);
+                        device.destroy();
+                    }
+                };
+            } catch (e) {
+                console.log('WebGPU particle init failed:', e);
+                return null;
+            }
+        };
+
+        // WebGL fallback using Three.js
+        const initWebGLBackground = async () => {
+            const canvas = document.getElementById('webgl-bg');
+            if (!canvas) return null;
+
+            // Try WebGPU first
+            if (isWebGPUSupported()) {
+                const webgpuSystem = await initWebGPUParticles(canvas);
+                if (webgpuSystem) return webgpuSystem;
+            }
+
+            // Fallback to Three.js WebGL
+            if (!window.THREE) return null;
+            console.log('Using WebGL fallback');
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Create particle field
+            const particleCount = 800;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 20;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+                velocities[i * 3] = (Math.random() - 0.5) * 0.002;
+                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.002;
+                velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.002;
+                sizes[i] = Math.random() * 2 + 0.5;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                color: 0xaaaaaa,
+                size: 0.08,
+                transparent: true,
+                opacity: 0.6,
+                sizeAttenuation: true
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 5;
+
+            let animationId;
+            let timerProgress = 0;
+            let isRunning = false;
+
+            const animate = () => {
+                animationId = requestAnimationFrame(animate);
+
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3] += velocities[i * 3];
+                    positions[i * 3 + 1] += velocities[i * 3 + 1];
+                    positions[i * 3 + 2] += velocities[i * 3 + 2];
+
+                    // Wrap around
+                    if (Math.abs(positions[i * 3]) > 10) velocities[i * 3] *= -1;
+                    if (Math.abs(positions[i * 3 + 1]) > 10) velocities[i * 3 + 1] *= -1;
+                    if (Math.abs(positions[i * 3 + 2]) > 10) velocities[i * 3 + 2] *= -1;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+
+                // Subtle rotation based on timer state
+                const rotationSpeed = isRunning ? 0.0008 : 0.0003;
+                particles.rotation.y += rotationSpeed;
+                particles.rotation.x += rotationSpeed * 0.3;
+
+                // Pulse effect when running
+                if (isRunning) {
+                    const pulse = Math.sin(Date.now() * 0.002) * 0.1 + 1;
+                    material.opacity = 0.5 + pulse * 0.2;
+                    material.size = 0.1 + pulse * 0.02;
+                } else {
+                    material.opacity = 0.4;
+                    material.size = 0.08;
+                }
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            const handleResize = () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            };
+            window.addEventListener('resize', handleResize);
+
+            return {
+                setTimerState: (running, progress) => {
+                    isRunning = running;
+                    timerProgress = progress;
+                },
+                destroy: () => {
+                    cancelAnimationFrame(animationId);
+                    window.removeEventListener('resize', handleResize);
+                    renderer.dispose();
+                }
+            };
+        };
+
+        // Global reference for WebGL background
+        let webglBg = null;
+
+        // ============================================
+        // Timer Orb - 3D Pulsating Sphere
+        // ============================================
+        const createTimerOrb = (canvas) => {
+            if (!canvas || !window.THREE) return null;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(280, 280);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Create glassmorphic sphere with multiple layers
+            const sphereGeometry = new THREE.SphereGeometry(1.8, 64, 64);
+
+            // Inner glow sphere
+            const innerMaterial = new THREE.MeshBasicMaterial({
+                color: 0xf5f5f0,
+                transparent: true,
+                opacity: 0.3
+            });
+            const innerSphere = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), innerMaterial);
+            scene.add(innerSphere);
+
+            // Main sphere with gradient-like effect
+            const mainMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xe8e8e0,
+                metalness: 0.1,
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.6,
+                transmission: 0.3,
+                thickness: 0.5,
+                envMapIntensity: 0.5
+            });
+            const mainSphere = new THREE.Mesh(sphereGeometry, mainMaterial);
+            scene.add(mainSphere);
+
+            // Outer glow ring
+            const ringGeometry = new THREE.TorusGeometry(2.2, 0.03, 16, 100);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1a1a1a,
+                transparent: true,
+                opacity: 0.2
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            scene.add(ring);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(2, 3, 5);
+            scene.add(directionalLight);
+
+            const backLight = new THREE.DirectionalLight(0xf0f0e8, 0.3);
+            backLight.position.set(-2, -1, -3);
+            scene.add(backLight);
+
+            camera.position.z = 5;
+
+            let animationId;
+            let progress = 0;
+            let isRunning = false;
+            let baseScale = 1;
+            let targetScale = 1;
+
+            const animate = () => {
+                animationId = requestAnimationFrame(animate);
+
+                const time = Date.now() * 0.001;
+
+                // Smooth scale transition
+                baseScale += (targetScale - baseScale) * 0.05;
+
+                // Pulsation - slower when paused, faster when running
+                const pulseSpeed = isRunning ? 1.5 : 0.5;
+                const pulseAmount = isRunning ? 0.08 : 0.03;
+                const pulse = Math.sin(time * pulseSpeed) * pulseAmount + 1;
+
+                const scale = baseScale * pulse;
+                mainSphere.scale.set(scale, scale, scale);
+                innerSphere.scale.set(scale * 0.85, scale * 0.85, scale * 0.85);
+
+                // Gentle rotation
+                mainSphere.rotation.y = time * 0.1;
+                mainSphere.rotation.x = Math.sin(time * 0.2) * 0.1;
+                innerSphere.rotation.y = -time * 0.15;
+
+                // Ring follows progress
+                ring.rotation.x = Math.PI / 2;
+                ring.rotation.z = time * 0.2;
+
+                // Color shift based on progress
+                const hue = 0.08 - progress * 0.08; // Subtle warm shift as timer progresses
+                mainMaterial.color.setHSL(hue, 0.05, 0.9);
+
+                // Opacity based on running state
+                mainMaterial.opacity = isRunning ? 0.7 : 0.5;
+                innerMaterial.opacity = isRunning ? 0.4 : 0.2;
+                ringMaterial.opacity = isRunning ? 0.3 : 0.15;
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            return {
+                setProgress: (p) => { progress = p; },
+                setRunning: (r) => {
+                    isRunning = r;
+                    targetScale = r ? 1.05 : 1;
+                },
+                resize: (size) => {
+                    renderer.setSize(size, size);
+                },
+                destroy: () => {
+                    cancelAnimationFrame(animationId);
+                    renderer.dispose();
+                }
+            };
+        };
+
+        // ============================================
+        // Ambient Sound System
+        // ============================================
+        const ambientModes = {
+            off: { name: 'Off', generate: null },
+            focus: {
+                name: 'Focus',
+                generate: (ctx, gainNode) => {
+                    // Deep focus drone - layered sine waves
+                    const frequencies = [55, 110, 165, 82.5];
+                    const oscillators = frequencies.map((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const oscGain = ctx.createGain();
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        oscGain.gain.value = 0.15 / (i + 1);
+                        osc.connect(oscGain);
+                        oscGain.connect(gainNode);
+                        osc.start();
+                        return { osc, gain: oscGain };
+                    });
+
+                    // Slow LFO for subtle movement
+                    const lfo = ctx.createOscillator();
+                    const lfoGain = ctx.createGain();
+                    lfo.frequency.value = 0.1;
+                    lfoGain.gain.value = 3;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(oscillators[0].osc.frequency);
+                    lfo.start();
+
+                    return () => {
+                        oscillators.forEach(o => { o.osc.stop(); o.osc.disconnect(); });
+                        lfo.stop();
+                        lfo.disconnect();
+                    };
+                }
+            },
+            rain: {
+                name: 'Rain',
+                generate: (ctx, gainNode) => {
+                    // Brown noise for rain-like ambience
+                    const bufferSize = 2 * ctx.sampleRate;
+                    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+
+                    let lastOut = 0;
+                    for (let i = 0; i < bufferSize; i++) {
+                        const white = Math.random() * 2 - 1;
+                        output[i] = (lastOut + (0.02 * white)) / 1.02;
+                        lastOut = output[i];
+                        output[i] *= 3.5; // Boost volume
+                    }
+
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    noise.loop = true;
+
+                    // Filter for softer sound
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 400;
+
+                    noise.connect(filter);
+                    filter.connect(gainNode);
+                    noise.start();
+
+                    return () => {
+                        noise.stop();
+                        noise.disconnect();
+                        filter.disconnect();
+                    };
+                }
+            },
+            space: {
+                name: 'Space',
+                generate: (ctx, gainNode) => {
+                    // Ethereal space ambience with slow sweeping tones
+                    const oscillators = [];
+                    const baseFreqs = [40, 60, 80];
+
+                    baseFreqs.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const oscGain = ctx.createGain();
+                        const filter = ctx.createBiquadFilter();
+
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        filter.type = 'lowpass';
+                        filter.frequency.value = 200;
+                        filter.Q.value = 5;
+                        oscGain.gain.value = 0.12;
+
+                        osc.connect(filter);
+                        filter.connect(oscGain);
+                        oscGain.connect(gainNode);
+                        osc.start();
+
+                        // Slow sweep
+                        const lfo = ctx.createOscillator();
+                        const lfoGain = ctx.createGain();
+                        lfo.frequency.value = 0.05 + i * 0.02;
+                        lfoGain.gain.value = freq * 0.3;
+                        lfo.connect(lfoGain);
+                        lfoGain.connect(osc.frequency);
+                        lfo.start();
+
+                        oscillators.push({ osc, lfo, filter, gain: oscGain });
+                    });
+
+                    return () => {
+                        oscillators.forEach(o => {
+                            o.osc.stop();
+                            o.lfo.stop();
+                            o.osc.disconnect();
+                            o.lfo.disconnect();
+                        });
+                    };
+                }
+            }
+        };
+
+        const createAmbientSoundSystem = (audioCtx) => {
+            if (!audioCtx) return null;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0;
+            masterGain.connect(audioCtx.destination);
+
+            let currentMode = 'off';
+            let stopCurrentAmbient = null;
+            let targetVolume = 0;
+
+            const setMode = (mode) => {
+                if (stopCurrentAmbient) {
+                    stopCurrentAmbient();
+                    stopCurrentAmbient = null;
+                }
+
+                currentMode = mode;
+                if (mode !== 'off' && ambientModes[mode]?.generate) {
+                    stopCurrentAmbient = ambientModes[mode].generate(audioCtx, masterGain);
+                }
+            };
+
+            const setVolume = (vol) => {
+                targetVolume = vol;
+                masterGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+            };
+
+            const getVolume = () => targetVolume;
+            const getMode = () => currentMode;
+
+            const destroy = () => {
+                if (stopCurrentAmbient) {
+                    stopCurrentAmbient();
+                }
+                masterGain.disconnect();
+            };
+
+            return { setMode, setVolume, getVolume, getMode, destroy };
+        };
+
+        // Audio context for generating beeps
+        const createAudioContext = () => {
+            return new (window.AudioContext || window.webkitAudioContext)();
+        };
+
+        const playBeep = (audioCtx, masterGain, frequency = 800, duration = 0.1, count = 1) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            const playOne = (delay) => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(destination);
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+                gainNode.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + delay + 0.02);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + delay + duration);
+                oscillator.start(audioCtx.currentTime + delay);
+                oscillator.stop(audioCtx.currentTime + delay + duration);
+            };
+            for (let i = 0; i < count; i++) playOne(i * 0.25);
+        };
+
+        const playProgressBeep = (audioCtx, masterGain, count = 1) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Soft, gentle progress indicator
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(destination);
+                    osc.frequency.value = 220;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.2);
+                }, i * 300);
+            }
+        };
+
+        const playCompletionSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Rich completion sequence - 2.5 seconds of satisfying closure
+            const now = audioCtx.currentTime;
+
+            // Triumphant chord swell
+            const chordOsc1 = audioCtx.createOscillator();
+            const chordOsc2 = audioCtx.createOscillator();
+            const chordOsc3 = audioCtx.createOscillator();
+            const chordGain = audioCtx.createGain();
+            chordOsc1.connect(chordGain);
+            chordOsc2.connect(chordGain);
+            chordOsc3.connect(chordGain);
+            chordGain.connect(destination);
+            chordOsc1.frequency.value = 220; // A
+            chordOsc2.frequency.value = 277; // C#
+            chordOsc3.frequency.value = 330; // E
+            chordOsc1.type = 'sine';
+            chordOsc2.type = 'sine';
+            chordOsc3.type = 'sine';
+            chordGain.gain.setValueAtTime(0, now);
+            chordGain.gain.linearRampToValueAtTime(0.08, now + 0.3);
+            chordGain.gain.linearRampToValueAtTime(0.05, now + 1);
+            chordGain.gain.linearRampToValueAtTime(0, now + 1.5);
+            chordOsc1.start(now);
+            chordOsc2.start(now);
+            chordOsc3.start(now);
+            chordOsc1.stop(now + 1.5);
+            chordOsc2.stop(now + 1.5);
+            chordOsc3.stop(now + 1.5);
+
+            // Descending resolution tones
+            [440, 330, 262, 220].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.08);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.35);
+                }, 800 + i * 200);
+            });
+
+            // Final soft gong
+            setTimeout(() => {
+                const gongOsc = audioCtx.createOscillator();
+                const gongGain = audioCtx.createGain();
+                gongOsc.connect(gongGain);
+                gongGain.connect(destination);
+                gongOsc.frequency.value = 110;
+                gongOsc.type = 'sine';
+                gongGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gongGain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.1);
+                gongGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+                gongOsc.start(audioCtx.currentTime);
+                gongOsc.stop(audioCtx.currentTime + 0.8);
+            }, 1800);
+        };
+
+        const playWarningBeep = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Gentle reminder that time is running out
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.frequency.value = 330;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        };
+
+        // ============================================
+        // Voice Cue System - Pre-recorded Audio Files
+        // ============================================
+        const voiceCueSystem = {
+            enabled: true,
+            audioCache: {},
+            currentAudio: null,
+            basePath: 'audio/voice/',
+            funMode: true, // Enable cheeky/fun voice clips
+
+            // Pick random clip from array
+            randomPick(clips) {
+                return clips[Math.floor(Math.random() * clips.length)];
+            },
+
+            // 50% chance to use fun variant if available
+            maybeUseFun(standard, funVariants) {
+                if (this.funMode && funVariants && Math.random() > 0.5) {
+                    return this.randomPick(funVariants);
+                }
+                return standard;
+            },
+
+            init() {
+                // Preload common audio files
+                const preloadClips = ['start-focus', 'pause', 'resume', 'complete-focus',
+                    'time-5min', 'time-1min', 'time-30sec', 'time-10sec',
+                    'fun-start', 'fun-complete', 'cheeky-1', 'cheeky-2'];
+                preloadClips.forEach(id => this.preload(id));
+                console.log('Voice cue system ready (pre-recorded audio with fun mode)');
+            },
+
+            preload(clipId) {
+                if (!this.audioCache[clipId]) {
+                    const audio = new Audio(this.basePath + clipId + '.mp3');
+                    audio.preload = 'auto';
+                    this.audioCache[clipId] = audio;
+                }
+            },
+
+            play(clipId, priority = false) {
+                if (!this.enabled) return;
+
+                // Stop current audio if priority
+                if (priority && this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.currentTime = 0;
+                }
+
+                // Get or create audio element
+                if (!this.audioCache[clipId]) {
+                    this.audioCache[clipId] = new Audio(this.basePath + clipId + '.mp3');
+                }
+
+                const audio = this.audioCache[clipId];
+                audio.currentTime = 0;
+                audio.volume = 0.8;
+                this.currentAudio = audio;
+                audio.play().catch(e => console.log('Voice play blocked:', e));
+            },
+
+            // Legacy speak method for any dynamic text (falls back to Web Speech)
+            speak(text, priority = false) {
+                if (!this.enabled) return;
+
+                // Use Web Speech API for dynamic text
+                if ('speechSynthesis' in window) {
+                    if (priority) speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.1;
+                    utterance.volume = 0.8;
+                    speechSynthesis.speak(utterance);
+                }
+            },
+
+            // Time announcements
+            announceTimeRemaining(seconds, mode) {
+                const mins = Math.floor(seconds / 60);
+
+                if (mins === 20 && seconds % 60 === 0) {
+                    this.play('time-20min');
+                } else if (mins === 15 && seconds % 60 === 0) {
+                    // Halfway! Use fun variant sometimes
+                    this.play(this.maybeUseFun('time-15min', ['fun-halfway']));
+                } else if (mins === 10 && seconds % 60 === 0) {
+                    this.play('time-10min');
+                } else if (mins === 5 && seconds % 60 === 0) {
+                    // 5 min left - maybe motivational
+                    this.play(this.maybeUseFun('time-5min', ['fun-almost', 'motivate-3']));
+                } else if (mins === 2 && seconds % 60 === 0) {
+                    this.play('time-2min');
+                } else if (mins === 1 && seconds % 60 === 0) {
+                    this.play('time-1min');
+                } else if (seconds === 30) {
+                    this.play('time-30sec');
+                } else if (seconds === 10) {
+                    this.play('time-10sec');
+                }
+            },
+
+            announceElapsed(elapsedMins, mode) {
+                if (mode !== 'work') return;
+
+                if (elapsedMins === 5) {
+                    this.play('elapsed-5min');
+                } else if (elapsedMins === 10) {
+                    // 10 min milestone - motivational variant
+                    this.play(this.maybeUseFun('elapsed-10min', ['motivate-1', 'motivate-2']));
+                } else if (elapsedMins === 15) {
+                    this.play('elapsed-15min');
+                } else if (elapsedMins === 20) {
+                    this.play('elapsed-20min');
+                }
+            },
+
+            announceCompletion(mode, points) {
+                if (mode === 'work') {
+                    // Fun completion messages
+                    this.play(this.maybeUseFun('complete-focus', ['fun-complete']), true);
+                    // Play points clip after a delay
+                    if (points >= 100) {
+                        setTimeout(() => this.play('points-100'), 2500);
+                    } else if (points >= 50) {
+                        setTimeout(() => this.play('points-50'), 2500);
+                    } else {
+                        setTimeout(() => this.play('points-25'), 2500);
+                    }
+                } else if (mode === 'shortBreak') {
+                    this.play(this.maybeUseFun('complete-short-break', ['sassy-3']), true);
+                } else {
+                    this.play('complete-long-break', true);
+                }
+            },
+
+            announceStart(mode) {
+                if (mode === 'work') {
+                    // Fun start messages
+                    this.play(this.maybeUseFun('start-focus', ['fun-start', 'motivate-3']), true);
+                } else if (mode === 'shortBreak') {
+                    this.play(this.maybeUseFun('start-short-break', ['fun-break']), true);
+                } else {
+                    this.play('start-long-break', true);
+                }
+            },
+
+            announcePause() {
+                // Sassy pause messages
+                this.play(this.maybeUseFun('pause', ['sassy-1']));
+            },
+
+            // Random cheeky reminder (can be called during idle)
+            announceCheekyReminder() {
+                const cheeky = ['cheeky-1', 'cheeky-2', 'cheeky-3', 'cheeky-4', 'cheeky-5'];
+                this.play(this.randomPick(cheeky), true);
+            },
+
+            announceResume() {
+                this.play('resume');
+            },
+
+            announceNudge() {
+                const clips = ['nudge', 'nudge-gentle'];
+                this.play(clips[Math.floor(Math.random() * clips.length)], true);
+            }
+        };
+
+        // Initialize voice system
+        voiceCueSystem.init();
+
+        const playReminderSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            [880, 1100, 880, 1100].forEach((freq, i) => {
+                setTimeout(() => playBeep(audioCtx, masterGain, freq, 0.08, 1), i * 100);
+            });
+        };
+
+        const playStartSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Warm, gentle startup - 2 seconds of soft building energy
+            const now = audioCtx.currentTime;
+
+            // Deep warm hum
+            const humOsc = audioCtx.createOscillator();
+            const humGain = audioCtx.createGain();
+            humOsc.connect(humGain);
+            humGain.connect(destination);
+            humOsc.frequency.value = 55;
+            humOsc.type = 'sine';
+            humGain.gain.setValueAtTime(0, now);
+            humGain.gain.linearRampToValueAtTime(0.12, now + 0.3);
+            humGain.gain.linearRampToValueAtTime(0.08, now + 1.2);
+            humGain.gain.linearRampToValueAtTime(0, now + 2);
+            humOsc.start(now);
+            humOsc.stop(now + 2);
+
+            // Soft rising tones - lower frequencies, gentler
+            [110, 165, 220, 275, 330].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.1);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }, 200 + i * 250);
+            });
+
+            // Gentle confirmation - soft chime
+            setTimeout(() => {
+                [330, 440, 330].forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.05);
+                        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.25);
+                    }, i * 150);
+                });
+            }, 1500);
+        };
+
+        const playPauseSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Soft descending hum
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.4);
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.4);
+        };
+
+        const playClickSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Soft thud
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.frequency.value = 150;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.06);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.06);
+        };
+
+        const playModeChangeSound = (audioCtx, masterGain) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Gentle whoosh
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(280, audioCtx.currentTime + 0.15);
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        };
+
+        const playToggleSound = (audioCtx, masterGain, on) => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            // Soft pop
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(destination);
+            osc.frequency.value = on ? 280 : 180;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.02);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.08);
+        };
+
+        // Tick sound styles
+        const tickStyles = {
+            soft: (audioCtx, destination) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.frequency.value = 200;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.02);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.02);
+            },
+            click: (audioCtx, destination) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.frequency.value = 800;
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.008);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.008);
+            },
+            pulse: (audioCtx, destination) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.frequency.value = 60;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.03);
+            },
+            woodblock: (audioCtx, destination) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(destination);
+                osc.frequency.value = 1200;
+                osc.type = 'triangle';
+                gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.012);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.012);
+            }
+        };
+
+        const playTickSound = (audioCtx, masterGain, style = 'soft') => {
+            if (!audioCtx) return;
+            const destination = masterGain || audioCtx.destination;
+            if (tickStyles[style]) {
+                tickStyles[style](audioCtx, destination);
+            }
+        };
+
+        // Save pomodoro session to Supabase
+        async function saveSessionToSupabase(userId, sessionType, durationSeconds, points) {
+            if (!supabase || !userId) return;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Save individual session
+                await supabase.from('pomodoro_sessions').insert({
+                    user_id: userId,
+                    session_type: sessionType,
+                    duration_seconds: durationSeconds,
+                    points_earned: points,
+                    date: today
+                });
+
+                // Update daily activity
+                const { data: existing } = await supabase
+                    .from('daily_activity')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', today)
+                    .single();
+
+                if (existing) {
+                    await supabase.from('daily_activity')
+                        .update({
+                            pomodoros_completed: existing.pomodoros_completed + 1,
+                            total_focus_minutes: existing.total_focus_minutes + Math.floor(durationSeconds / 60),
+                            points_earned: existing.points_earned + points
+                        })
+                        .eq('user_id', userId)
+                        .eq('date', today);
+                } else {
+                    await supabase.from('daily_activity').insert({
+                        user_id: userId,
+                        date: today,
+                        pomodoros_completed: 1,
+                        total_focus_minutes: Math.floor(durationSeconds / 60),
+                        points_earned: points
+                    });
+                }
+
+                // Update profile points
+                await supabase.from('profiles')
+                    .update({ total_points: supabase.rpc ? undefined : points })
+                    .eq('id', userId);
+
+                // Try RPC if available
+                await supabase.rpc('add_user_points', { p_user_id: userId, p_points: points }).catch(() => {});
+
+                console.log('Session saved to Supabase');
+            } catch (err) {
+                console.error('Error saving to Supabase:', err);
+            }
+        }
+
+        // Load user data from Supabase
+        async function loadUserDataFromSupabase(userId) {
+            if (!supabase || !userId) return null;
+            try {
+                // Load profile
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('total_points')
+                    .eq('id', userId)
+                    .single();
+
+                // Load daily activity for the year
+                const yearAgo = new Date();
+                yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+                const { data: activity } = await supabase
+                    .from('daily_activity')
+                    .select('date, pomodoros_completed')
+                    .eq('user_id', userId)
+                    .gte('date', yearAgo.toISOString().split('T')[0]);
+
+                // Convert to activityData format
+                const activityMap = {};
+                if (activity) {
+                    activity.forEach(row => {
+                        activityMap[row.date] = row.pomodoros_completed;
+                    });
+                }
+
+                // Get today's count
+                const today = new Date().toISOString().split('T')[0];
+                const todayCount = activityMap[today] || 0;
+
+                return {
+                    totalPoints: profile?.total_points || 0,
+                    activityData: activityMap,
+                    todayCount: todayCount
+                };
+            } catch (err) {
+                console.error('Error loading from Supabase:', err);
+                return null;
+            }
+        }
+
+        // Save timer state to Supabase for cross-device sync
+        async function saveTimerState(userId, state) {
+            if (!supabase || !userId) return;
+            try {
+                const { error } = await supabase.from('timer_state').upsert({
+                    user_id: userId,
+                    is_running: state.isRunning,
+                    mode: state.mode,
+                    time_left: state.timeLeft,
+                    started_at: state.isRunning ? new Date().toISOString() : null,
+                    series_target: state.seriesTarget,
+                    series_progress: state.seriesProgress,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
+                if (error) {
+                    console.error('Error saving timer state:', error);
+                } else {
+                    console.log('Timer state saved:', state.isRunning ? 'running' : 'paused', state.timeLeft + 's');
+                }
+            } catch (err) {
+                console.error('Error saving timer state:', err);
+            }
+        }
+
+        // Load timer state from Supabase
+        async function loadTimerState(userId) {
+            if (!supabase || !userId) return null;
+            try {
+                const { data, error } = await supabase
+                    .from('timer_state')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    console.error('Error loading timer state:', error);
+                    return null;
+                }
+
+                if (data) {
+                    // Calculate current time_left if timer was running
+                    let timeLeft = data.time_left;
+                    if (data.is_running && data.started_at) {
+                        const elapsed = Math.floor((Date.now() - new Date(data.started_at).getTime()) / 1000);
+                        timeLeft = Math.max(0, data.time_left - elapsed);
+                    }
+                    return {
+                        isRunning: data.is_running && timeLeft > 0,
+                        mode: data.mode,
+                        timeLeft: timeLeft,
+                        seriesTarget: data.series_target,
+                        seriesProgress: data.series_progress
+                    };
+                }
+                return null;
+            } catch (err) {
+                console.error('Error loading timer state:', err);
+                return null;
+            }
+        }
+
+        function ActiveTomato({ user, onLogout }) {
+            const [mode, setMode] = useState('work');
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isRunning, setIsRunning] = useState(false);
+            const [sessionsCompleted, setSessionsCompleted] = useState(0);
+            const [seriesTarget, setSeriesTarget] = useState(1);
+            const [seriesProgress, setSeriesProgress] = useState(0);
+            const [seriesPhase, setSeriesPhase] = useState('work'); // 'work' or 'break'
+            const [dataLoaded, setDataLoaded] = useState(false);
+
+            const [totalPoints, setTotalPoints] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoPoints');
+                return saved ? parseInt(saved) : 0;
+            });
+            const [todayPomodoros, setTodayPomodoros] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoToday');
+                const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), count: 0 };
+                return data.date !== new Date().toDateString() ? { date: new Date().toDateString(), count: 0 } : data;
+            });
+            const [activityData, setActivityData] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoActivity');
+                return saved ? JSON.parse(saved) : {};
+            });
+            const [todayLog, setTodayLog] = useState(() => {
+                const saved = localStorage.getItem('activeTomatoLog');
+                const data = saved ? JSON.parse(saved) : { date: new Date().toDateString(), entries: [] };
+                return data.date !== new Date().toDateString() ? { date: new Date().toDateString(), entries: [] } : data;
+            });
+
+            // Load data from Supabase on mount and subscribe to realtime
+            useEffect(() => {
+                // If no supabase, mark as error
+                if (!supabase) {
+                    setSyncStatus('error');
+                }
+
+                if (user?.id && !dataLoaded) {
+                    // Load activity data
+                    loadUserDataFromSupabase(user.id).then(data => {
+                        if (data) {
+                            setTotalPoints(data.totalPoints);
+                            setActivityData(data.activityData);
+                            setTodayPomodoros(prev => ({ ...prev, count: data.todayCount }));
+                            localStorage.setItem('activeTomatoPoints', data.totalPoints);
+                            localStorage.setItem('activeTomatoActivity', JSON.stringify(data.activityData));
+                        }
+                    });
+
+                    // Load timer state
+                    loadTimerState(user.id).then(state => {
+                        if (state) {
+                            syncingFromRemoteRef.current = true;
+                            setMode(state.mode);
+                            setTimeLeft(state.timeLeft);
+                            setIsRunning(state.isRunning);
+                            setSeriesTarget(state.seriesTarget);
+                            setSeriesProgress(state.seriesProgress);
+                            setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                        }
+                        setDataLoaded(true);
+                    });
+
+                    // Subscribe to realtime timer updates (exact wall-display pattern)
+                    if (supabase) {
+                        const channel = supabase
+                            .channel('timer-changes')
+                            .on(
+                                'postgres_changes',
+                                { event: '*', schema: 'public', table: 'timer_state' },
+                                async () => {
+                                    // Refetch timer state when any change happens
+                                    console.log('Realtime: timer_state changed, refetching...');
+                                    const state = await loadTimerState(user.id);
+                                    if (state) {
+                                        syncingFromRemoteRef.current = true;
+                                        setMode(state.mode);
+                                        setTimeLeft(state.timeLeft);
+                                        setIsRunning(state.isRunning);
+                                        setSeriesTarget(state.seriesTarget);
+                                        setSeriesProgress(state.seriesProgress);
+                                        console.log('Timer synced from remote:', state.isRunning ? 'running' : 'paused');
+                                        setTimeout(() => { syncingFromRemoteRef.current = false; }, 100);
+                                    }
+                                }
+                            )
+                            .subscribe();
+
+                        realtimeChannelRef.current = channel;
+                        setSyncStatus('connected');
+                    }
+                }
+
+                return () => {
+                    if (realtimeChannelRef.current) {
+                        supabase?.removeChannel(realtimeChannelRef.current);
+                    }
+                };
+            }, [user, dataLoaded]);
+
+            // Load saved preferences from localStorage
+            const loadPreferences = () => {
+                try {
+                    const saved = localStorage.getItem('activetomato-preferences');
+                    return saved ? JSON.parse(saved) : {};
+                } catch (e) {
+                    return {};
+                }
+            };
+            const savedPrefs = loadPreferences();
+
+            // Sound toggles (load from saved preferences)
+            const [soundEnabled, setSoundEnabled] = useState(savedPrefs.soundEnabled ?? true);
+            const [intervalSoundEnabled, setIntervalSoundEnabled] = useState(savedPrefs.intervalSoundEnabled ?? true);
+            const [beepInterval, setBeepInterval] = useState(savedPrefs.beepInterval ?? 5); // 1 or 5 minutes
+            const [tickSoundEnabled, setTickSoundEnabled] = useState(savedPrefs.tickSoundEnabled ?? false);
+            const [tickStyle, setTickStyle] = useState(savedPrefs.tickStyle ?? 'soft');
+            const [voiceCuesEnabled, setVoiceCuesEnabled] = useState(savedPrefs.voiceCuesEnabled ?? true);
+
+            // Reminder & Auto-start (load from saved preferences)
+            const [reminderEnabled, setReminderEnabled] = useState(savedPrefs.reminderEnabled ?? false);
+            const [reminderInterval, setReminderInterval] = useState(savedPrefs.reminderInterval ?? 30);
+            const [autoStartEnabled, setAutoStartEnabled] = useState(savedPrefs.autoStartEnabled ?? false);
+            const [autoSeriesEnabled, setAutoSeriesEnabled] = useState(savedPrefs.autoSeriesEnabled ?? false);
+
+            const [notification, setNotification] = useState(null);
+            const [hoveredDay, setHoveredDay] = useState(null);
+            const [syncStatus, setSyncStatus] = useState('connecting'); // 'connecting', 'connected', 'error'
+
+            const audioCtxRef = useRef(null);
+            const lastIntervalRef = useRef(0);
+            const reminderTimerRef = useRef(null);
+            const realtimeChannelRef = useRef(null);
+            const syncingFromRemoteRef = useRef(false);
+            const prevIsRunningRef = useRef(false);
+
+            // WebGL refs
+            const orbCanvasRef = useRef(null);
+            const orbRef = useRef(null);
+            const masterGainRef = useRef(null);
+            const [systemVolume, setSystemVolume] = useState(savedPrefs.systemVolume ?? 0.5);
+
+            const durations = { work: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 };
+            const modeLabels = { work: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' };
+
+            const initAudio = () => {
+                if (!audioCtxRef.current) {
+                    audioCtxRef.current = createAudioContext();
+                }
+                // Mobile browsers suspend AudioContext - must resume on user gesture
+                if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+                    audioCtxRef.current.resume();
+                }
+
+                // Initialize master gain node for system volume control
+                if (!masterGainRef.current && audioCtxRef.current) {
+                    masterGainRef.current = audioCtxRef.current.createGain();
+                    masterGainRef.current.connect(audioCtxRef.current.destination);
+                    masterGainRef.current.gain.value = systemVolume;
+                }
+            };
+
+            // Save preferences to localStorage whenever they change
+            useEffect(() => {
+                const prefs = {
+                    soundEnabled,
+                    intervalSoundEnabled,
+                    beepInterval,
+                    tickSoundEnabled,
+                    tickStyle,
+                    voiceCuesEnabled,
+                    reminderEnabled,
+                    reminderInterval,
+                    autoStartEnabled,
+                    autoSeriesEnabled,
+                    systemVolume
+                };
+                localStorage.setItem('activetomato-preferences', JSON.stringify(prefs));
+            }, [soundEnabled, intervalSoundEnabled, beepInterval, tickSoundEnabled, tickStyle, voiceCuesEnabled,
+                reminderEnabled, reminderInterval, autoStartEnabled, autoSeriesEnabled, systemVolume]);
+
+            // Initialize WebGL background and orb
+            useEffect(() => {
+                // Initialize background particles (async for WebGPU check)
+                const initBg = async () => {
+                    if (!webglBg) {
+                        webglBg = await initWebGLBackground();
+                    }
+                };
+                initBg();
+
+                // Initialize timer orb
+                if (orbCanvasRef.current && !orbRef.current) {
+                    orbRef.current = createTimerOrb(orbCanvasRef.current);
+                }
+
+                return () => {
+                    if (orbRef.current) {
+                        orbRef.current.destroy();
+                        orbRef.current = null;
+                    }
+                };
+            }, []);
+
+            // Update orb state based on timer
+            useEffect(() => {
+                if (orbRef.current) {
+                    orbRef.current.setRunning(isRunning);
+                    orbRef.current.setProgress((durations[mode] - timeLeft) / durations[mode]);
+                }
+                if (webglBg) {
+                    webglBg.setTimerState(isRunning, (durations[mode] - timeLeft) / durations[mode]);
+                }
+            }, [isRunning, timeLeft, mode]);
+
+            // Handle system volume changes
+            const handleSystemVolumeChange = (vol) => {
+                setSystemVolume(vol);
+                if (masterGainRef.current) {
+                    masterGainRef.current.gain.linearRampToValueAtTime(vol, audioCtxRef.current.currentTime + 0.1);
+                }
+            };
+
+            // Tauri widget mode toggle
+            const toggleWidgetMode = async () => {
+                if (window.__TAURI__) {
+                    try {
+                        await window.__TAURI__.core.invoke('toggle_widget_mode');
+                    } catch (e) {
+                        console.log('Widget mode toggle failed:', e);
+                    }
+                }
+            };
+
+            const getLevel = () => {
+                if (totalPoints < 100) return { level: 1, title: 'Seedling' };
+                if (totalPoints < 300) return { level: 2, title: 'Sprout' };
+                if (totalPoints < 600) return { level: 3, title: 'Sapling' };
+                if (totalPoints < 1000) return { level: 4, title: 'Tree' };
+                if (totalPoints < 2000) return { level: 5, title: 'Grove' };
+                return { level: 6, title: 'Forest' };
+            };
+
+            const showNotification = (message) => {
+                setNotification(message);
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            const addLogEntry = (message) => {
+                const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                setTodayLog(prev => {
+                    const newLog = { ...prev, entries: [...prev.entries, { time, message }].slice(-10) };
+                    localStorage.setItem('activeTomatoLog', JSON.stringify(newLog));
+                    return newLog;
+                });
+            };
+
+            const handleModeChange = (newMode) => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playModeChangeSound(audioCtxRef.current, masterGainRef.current);
+                }
+                setMode(newMode);
+                setTimeLeft(durations[newMode]);
+                setIsRunning(false);
+                lastIntervalRef.current = 0;
+            };
+
+            const handleSeriesSelect = (target) => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playClickSound(audioCtxRef.current, masterGainRef.current);
+                }
+                setSeriesTarget(target);
+                setSeriesProgress(0);
+                setSeriesPhase('work');
+                handleModeChange('work');
+            };
+
+            const startTimer = () => {
+                initAudio();
+                if (!isRunning) {
+                    addLogEntry(`Started ${modeLabels[mode]}`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playStartSound(audioCtxRef.current, masterGainRef.current);
+                    }
+                }
+                setIsRunning(true);
+            };
+
+            const toggleTimer = () => {
+                initAudio();
+                if (!isRunning) {
+                    addLogEntry(`Started ${modeLabels[mode]}`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playStartSound(audioCtxRef.current, masterGainRef.current);
+                    }
+                    if (voiceCuesEnabled) {
+                        voiceCueSystem.announceStart(mode);
+                    }
+                } else {
+                    if (soundEnabled && audioCtxRef.current) {
+                        playPauseSound(audioCtxRef.current, masterGainRef.current);
+                    }
+                    if (voiceCuesEnabled) {
+                        voiceCueSystem.announcePause();
+                    }
+                }
+                setIsRunning(!isRunning);
+            };
+
+            const resetTimer = () => {
+                initAudio();
+                if (soundEnabled && audioCtxRef.current) {
+                    playClickSound(audioCtxRef.current, masterGainRef.current);
+                }
+                const newTimeLeft = durations[mode];
+                setTimeLeft(newTimeLeft);
+                setIsRunning(false);
+                lastIntervalRef.current = 0;
+
+                // Force sync reset to other devices
+                if (user?.id) {
+                    saveTimerState(user.id, {
+                        isRunning: false,
+                        mode,
+                        timeLeft: newTimeLeft,
+                        seriesTarget,
+                        seriesProgress
+                    });
+                }
+            };
+
+            // Sync timer state to Supabase when key values change
+            useEffect(() => {
+                if (!user?.id || !dataLoaded || syncingFromRemoteRef.current) return;
+
+                // Debounce to avoid too many saves during countdown
+                const timeoutId = setTimeout(() => {
+                    saveTimerState(user.id, {
+                        isRunning,
+                        mode,
+                        timeLeft,
+                        seriesTarget,
+                        seriesProgress
+                    });
+                }, isRunning ? 5000 : 300); // Save every 5s when running, 300ms when paused
+
+                return () => clearTimeout(timeoutId);
+            }, [user?.id, dataLoaded, isRunning, mode, seriesTarget, seriesProgress]);
+
+            // Save immediately on start/stop (only trigger on isRunning change)
+            useEffect(() => {
+                if (!user?.id || !dataLoaded) return;
+                // Only save when isRunning actually changes
+                if (prevIsRunningRef.current === isRunning) return;
+                prevIsRunningRef.current = isRunning;
+
+                if (syncingFromRemoteRef.current) {
+                    console.log('Skipping save - syncing from remote');
+                    return;
+                }
+                console.log('Saving timer state on start/stop:', isRunning ? 'STARTED' : 'STOPPED', 'timeLeft:', timeLeft);
+                saveTimerState(user.id, {
+                    isRunning,
+                    mode,
+                    timeLeft,
+                    seriesTarget,
+                    seriesProgress
+                });
+            });
+
+            // Reminder effect
+            useEffect(() => {
+                if (reminderTimerRef.current) {
+                    clearInterval(reminderTimerRef.current);
+                }
+
+                if (reminderEnabled && !isRunning) {
+                    reminderTimerRef.current = setInterval(() => {
+                        initAudio();
+                        if (audioCtxRef.current) {
+                            playReminderSound(audioCtxRef.current, masterGainRef.current);
+                        }
+                        showNotification('Time to focus! Start your pomodoro.');
+
+                        if (autoStartEnabled) {
+                            setTimeout(() => {
+                                startTimer();
+                            }, 1500);
+                        }
+                    }, reminderInterval * 60 * 1000);
+                }
+
+                return () => {
+                    if (reminderTimerRef.current) {
+                        clearInterval(reminderTimerRef.current);
+                    }
+                };
+            }, [reminderEnabled, reminderInterval, isRunning, autoStartEnabled]);
+
+            const completeSession = useCallback(() => {
+                if (mode === 'work') {
+                    const points = 25;
+                    setTotalPoints(prev => {
+                        const newTotal = prev + points;
+                        localStorage.setItem('activeTomatoPoints', newTotal);
+                        return newTotal;
+                    });
+
+                    setTodayPomodoros(prev => {
+                        const newData = { ...prev, count: prev.count + 1 };
+                        localStorage.setItem('activeTomatoToday', JSON.stringify(newData));
+                        return newData;
+                    });
+
+                    const today = new Date().toISOString().split('T')[0];
+                    setActivityData(prev => {
+                        const newData = { ...prev, [today]: (prev[today] || 0) + 1 };
+                        localStorage.setItem('activeTomatoActivity', JSON.stringify(newData));
+                        return newData;
+                    });
+
+                    const newSessions = sessionsCompleted + 1;
+                    setSessionsCompleted(newSessions);
+
+                    addLogEntry(`Completed pomodoro! +${points} pts`);
+
+                    // Save to Supabase
+                    if (user?.id) {
+                        saveSessionToSupabase(user.id, 'work', durations.work, points);
+                    }
+
+                    if (soundEnabled && audioCtxRef.current) {
+                        playCompletionSound(audioCtxRef.current, masterGainRef.current);
+                    }
+                    if (voiceCuesEnabled) {
+                        setTimeout(() => voiceCueSystem.announceCompletion('work', points), 2500);
+                    }
+
+                    // Series mode logic
+                    if (seriesTarget > 1) {
+                        const newProgress = seriesProgress + 1;
+                        setSeriesProgress(newProgress);
+
+                        if (newProgress >= seriesTarget) {
+                            showNotification(`Series complete! ${seriesTarget} pomodoros done!`);
+                            setSeriesProgress(0);
+                            setSeriesPhase('work');
+                            handleModeChange('longBreak');
+                        } else {
+                            setSeriesPhase('break');
+                            const breakType = newProgress % 4 === 0 ? 'longBreak' : 'shortBreak';
+                            setMode(breakType);
+                            setTimeLeft(durations[breakType]);
+                            lastIntervalRef.current = 0;
+                            showNotification(`${newProgress}/${seriesTarget} done. Break time!`);
+
+                            if (autoSeriesEnabled) {
+                                setTimeout(() => setIsRunning(true), 2000);
+                            } else {
+                                setIsRunning(false);
+                            }
+                        }
+                    } else {
+                        showNotification(`+${points} points! Great focus session!`);
+                        if (newSessions % 4 === 0) {
+                            handleModeChange('longBreak');
+                        } else {
+                            handleModeChange('shortBreak');
+                        }
+                    }
+                } else {
+                    addLogEntry(`${modeLabels[mode]} completed`);
+                    if (soundEnabled && audioCtxRef.current) {
+                        playBeep(audioCtxRef.current, 700, 0.15, 2);
+                    }
+
+                    if (seriesTarget > 1 && seriesProgress < seriesTarget) {
+                        setSeriesPhase('work');
+                        setMode('work');
+                        setTimeLeft(durations.work);
+                        lastIntervalRef.current = 0;
+                        showNotification('Break over! Next pomodoro starting...');
+
+                        if (autoSeriesEnabled) {
+                            setTimeout(() => setIsRunning(true), 2000);
+                        } else {
+                            setIsRunning(false);
+                        }
+                    } else {
+                        handleModeChange('work');
+                        showNotification('Break over! Ready to focus?');
+                    }
+                }
+            }, [mode, sessionsCompleted, soundEnabled, seriesTarget, seriesProgress, autoSeriesEnabled]);
+
+            // Timer effect
+            useEffect(() => {
+                let interval = null;
+
+                if (isRunning && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft(prev => {
+                            const newTime = prev - 1;
+
+                            if (tickSoundEnabled && audioCtxRef.current) {
+                                playTickSound(audioCtxRef.current, masterGainRef.current, tickStyle);
+                            }
+
+                            if (intervalSoundEnabled && audioCtxRef.current && mode === 'work') {
+                                const elapsed = durations[mode] - newTime;
+                                const intervalSeconds = beepInterval * 60;
+                                const intervals = Math.floor(elapsed / intervalSeconds);
+                                if (intervals > lastIntervalRef.current && intervals > 0) {
+                                    lastIntervalRef.current = intervals;
+                                    playProgressBeep(audioCtxRef.current, masterGainRef.current, intervals);
+                                }
+                            }
+
+                            if (soundEnabled && audioCtxRef.current && newTime <= 30 && newTime > 0 && newTime % 10 === 0) {
+                                playWarningBeep(audioCtxRef.current, masterGainRef.current);
+                            }
+
+                            // Voice cues for time remaining
+                            if (voiceCuesEnabled) {
+                                voiceCueSystem.announceTimeRemaining(newTime, mode);
+
+                                // Elapsed time announcements
+                                const elapsedMins = Math.floor((durations[mode] - newTime) / 60);
+                                if ((durations[mode] - newTime) % 60 === 0 && elapsedMins > 0) {
+                                    voiceCueSystem.announceElapsed(elapsedMins, mode);
+                                }
+                            }
+
+                            return newTime;
+                        });
+                    }, 1000);
+                } else if (timeLeft === 0) {
+                    completeSession();
+                }
+
+                return () => clearInterval(interval);
+            }, [isRunning, timeLeft, mode, intervalSoundEnabled, beepInterval, soundEnabled, tickSoundEnabled, tickStyle, completeSession]);
+
+            const progress = ((durations[mode] - timeLeft) / durations[mode]) * 100;
+            const isWarning = timeLeft <= 60 && isRunning;
+
+            const generateActivityGrid = () => {
+                const weeks = [];
+                const today = new Date();
+                for (let w = 51; w >= 0; w--) {
+                    const week = [];
+                    for (let d = 0; d < 7; d++) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - (w * 7 + (6 - d)));
+                        const dateStr = date.toISOString().split('T')[0];
+                        const count = activityData[dateStr] || 0;
+                        let level = 0;
+                        if (count >= 1) level = 1;
+                        if (count >= 3) level = 2;
+                        if (count >= 5) level = 3;
+                        if (count >= 8) level = 4;
+                        week.push({ date: dateStr, count, level });
+                    }
+                    weeks.push(week);
+                }
+                return weeks;
+            };
+
+            const activityGrid = generateActivityGrid();
+            const totalPomodoros = Object.values(activityData).reduce((a, b) => a + b, 0);
+            const levelInfo = getLevel();
+            const elapsedMinutes = Math.floor((durations[mode] - timeLeft) / 60);
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // Generate series dots
+            const renderSeriesDots = () => {
+                if (seriesTarget <= 1) return null;
+                const dots = [];
+                for (let i = 0; i < seriesTarget; i++) {
+                    const isCompleted = i < seriesProgress;
+                    const isCurrent = i === seriesProgress && seriesPhase === 'work';
+                    dots.push(
+                        <div key={`work-${i}`} className={`series-dot ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`} />
+                    );
+                    if (i < seriesTarget - 1) {
+                        const breakCompleted = i < seriesProgress || (i === seriesProgress - 1 && seriesPhase === 'work');
+                        const breakCurrent = i === seriesProgress - 1 && seriesPhase === 'break';
+                        dots.push(
+                            <div key={`break-${i}`} className={`series-dot break ${breakCompleted ? 'completed' : ''} ${breakCurrent ? 'current' : ''}`} />
+                        );
+                    }
+                }
+                return dots;
+            };
+
+            return (
+                <div className="container">
+                    {notification && <div className="notification">{notification}</div>}
+
+                    <div className="eink-screen compact" onDoubleClick={() => {
+                        if (window.__TAURI__) {
+                            window.__TAURI__.core.invoke('cycle_view_mode');
+                        }
+                    }}>
+                        <div className="screen-content">
+                            {/* Header - drag region */}
+                            <div className="header"
+                                style={{cursor: 'grab'}}
+                                onMouseDown={(e) => {
+                                    // Only start drag if not clicking a button
+                                    if (e.target.tagName !== 'BUTTON' && window.__TAURI__) {
+                                        e.preventDefault();
+                                        window.__TAURI__.window.getCurrentWindow().startDragging();
+                                    }
+                                }}>
+                                <div className="header-left">
+                                    <h1>ACTIVETOMATO</h1>
+                                    <div className="subtitle">
+                                        {user?.email || 'Signed In'}
+                                        {onLogout && (
+                                            <button className="logout-btn" onClick={onLogout} style={{marginLeft: '10px'}}>Logout</button>
+                                        )}
+                                        <span className={`sync-indicator ${syncStatus}`}>
+                                            <span className="sync-icon">{syncStatus === 'connected' ? '⟳' : syncStatus === 'error' ? '✕' : '◌'}</span>
+                                            {syncStatus === 'connected' ? 'Synced' : syncStatus === 'error' ? 'Offline' : '...'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="header-right">
+                                    <div className="stat-box tooltip" data-tooltip="Total points earned from completed pomodoros">
+                                        <div className="stat-label">Points</div>
+                                        <div className="stat-value">{totalPoints}</div>
+                                    </div>
+                                    <div className="stat-box tooltip" data-tooltip="Pomodoros completed today">
+                                        <div className="stat-label">Today</div>
+                                        <div className="stat-value">{todayPomodoros.count}</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-label">Level</div>
+                                        <div className="level-badge">{levelInfo.title}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main Content */}
+                            <div className="main-content">
+                                {/* Series Selector */}
+                                <div className="series-selector tooltip" data-tooltip="Plan multiple pomodoros in a row with automatic breaks">
+                                    <span className="series-label">Chain</span>
+                                    <div className="series-buttons">
+                                        {[1, 2, 3, 4, 5, 6].map(n => (
+                                            <button
+                                                key={n}
+                                                className={`series-btn ${seriesTarget === n ? 'active' : ''}`}
+                                                onClick={() => handleSeriesSelect(n)}
+                                            >
+                                                {n === 1 ? 'Single' : `${n}x`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {seriesTarget > 1 && (
+                                        <div className="series-progress">
+                                            {renderSeriesDots()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Mode Tabs */}
+                                <div className="mode-tabs">
+                                    <button className={`mode-tab ${mode === 'work' ? 'active' : ''}`} onClick={() => handleModeChange('work')}>Focus</button>
+                                    <button className={`mode-tab ${mode === 'shortBreak' ? 'active' : ''}`} onClick={() => handleModeChange('shortBreak')}>Short</button>
+                                    <button className={`mode-tab ${mode === 'longBreak' ? 'active' : ''}`} onClick={() => handleModeChange('longBreak')}>Long</button>
+                                </div>
+
+                                {/* Timer Display */}
+                                <div className="timer-display">
+                                    <div className="timer-label">{modeLabels[mode]}</div>
+                                    <div className={`timer-digits ${isWarning ? 'warning' : ''}`}>
+                                        {formatTime(timeLeft)}
+                                    </div>
+                                    <div className="timer-progress">
+                                        <div className="timer-progress-bar" style={{ width: `${progress}%` }} />
+                                    </div>
+                                    {mode === 'work' && (
+                                        <div className="interval-indicator">{elapsedMinutes} min elapsed</div>
+                                    )}
+                                </div>
+
+                                {/* Controls */}
+                                <div className="controls">
+                                    <button className="btn primary" onClick={toggleTimer}>
+                                        {isRunning ? 'Pause' : 'Start'}
+                                    </button>
+                                    <button className="btn" onClick={resetTimer}>Reset</button>
+                                    {window.__TAURI__ && (
+                                        <button className="btn" onClick={toggleWidgetMode} title="Toggle Widget Mode">
+                                            Widget
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Toggle Panels */}
+                                <div className="toggle-panels">
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Audio Cues</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Play a melody when timer completes + warning beeps in last 30 sec" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !soundEnabled); setSoundEnabled(!soundEnabled); }}>
+                                            <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`} />
+                                            <label>Completion Sound</label>
+                                        </div>
+                                        <div className="toggle-item tooltip" data-tooltip="Beep at intervals: 1 beep at first interval, 2 at second, etc." onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !intervalSoundEnabled); setIntervalSoundEnabled(!intervalSoundEnabled); }}>
+                                            <div className={`toggle-switch ${intervalSoundEnabled ? 'on' : ''}`} />
+                                            <label>Progress Beeps</label>
+                                        </div>
+                                        <div className={`tick-style-selector ${!intervalSoundEnabled ? 'disabled' : ''}`}>
+                                            {[1, 5].map(mins => (
+                                                <button
+                                                    key={mins}
+                                                    className={`tick-style-btn ${beepInterval === mins ? 'active' : ''}`}
+                                                    disabled={!intervalSoundEnabled}
+                                                    onClick={() => {
+                                                        if (!intervalSoundEnabled) return;
+                                                        initAudio();
+                                                        setBeepInterval(mins);
+                                                        playProgressBeep(audioCtxRef.current, masterGainRef.current, 1);
+                                                    }}
+                                                >
+                                                    {mins} min
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="toggle-item tooltip" data-tooltip="Audible tick sound on every second countdown" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !tickSoundEnabled); setTickSoundEnabled(!tickSoundEnabled); }}>
+                                            <div className={`toggle-switch ${tickSoundEnabled ? 'on' : ''}`} />
+                                            <label>Countdown Tick</label>
+                                        </div>
+                                        <div className={`tick-style-selector ${!tickSoundEnabled ? 'disabled' : ''}`}>
+                                            {['soft', 'click', 'pulse', 'woodblock'].map(style => (
+                                                <button
+                                                    key={style}
+                                                    className={`tick-style-btn ${tickStyle === style ? 'active' : ''}`}
+                                                    disabled={!tickSoundEnabled}
+                                                    onClick={() => {
+                                                        if (!tickSoundEnabled) return;
+                                                        initAudio();
+                                                        setTickStyle(style);
+                                                        playTickSound(audioCtxRef.current, masterGainRef.current, style);
+                                                    }}
+                                                >
+                                                    {style}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="toggle-item tooltip" data-tooltip="Voice announcements: time remaining, milestones, and session completion" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !voiceCuesEnabled); setVoiceCuesEnabled(!voiceCuesEnabled); if (!voiceCuesEnabled) voiceCueSystem.speak('Voice cues enabled'); }}>
+                                            <div className={`toggle-switch ${voiceCuesEnabled ? 'on' : ''}`} />
+                                            <label>Voice Cues</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Nudge Me</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Ping you to start a pomodoro when timer is idle" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !reminderEnabled); setReminderEnabled(!reminderEnabled); }}>
+                                            <div className={`toggle-switch ${reminderEnabled ? 'on' : ''}`} />
+                                            <label>Remind to Focus</label>
+                                        </div>
+                                        {reminderEnabled && (
+                                            <div className="reminder-settings">
+                                                <span className="reminder-label">Every</span>
+                                                <select
+                                                    className="reminder-select"
+                                                    value={reminderInterval}
+                                                    onChange={(e) => { initAudio(); playClickSound(audioCtxRef.current, masterGainRef.current); setReminderInterval(parseInt(e.target.value)); }}
+                                                >
+                                                    <option value={5}>5 min</option>
+                                                    <option value={10}>10 min</option>
+                                                    <option value={15}>15 min</option>
+                                                    <option value={30}>30 min</option>
+                                                    <option value={60}>1 hour</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="toggle-item tooltip" data-tooltip="Automatically start timer when reminder fires" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !autoStartEnabled); setAutoStartEnabled(!autoStartEnabled); }}>
+                                            <div className={`toggle-switch ${autoStartEnabled ? 'on' : ''}`} />
+                                            <label>Auto-Start</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Chain Mode</div>
+                                        <div className="toggle-item tooltip" data-tooltip="Auto-start next pomodoro after break in a series" onClick={() => { initAudio(); playToggleSound(audioCtxRef.current, masterGainRef.current, !autoSeriesEnabled); setAutoSeriesEnabled(!autoSeriesEnabled); }}>
+                                            <div className={`toggle-switch ${autoSeriesEnabled ? 'on' : ''}`} />
+                                            <label>Chain Sessions</label>
+                                        </div>
+                                    </div>
+
+                                    <div className="toggle-group">
+                                        <div className="toggle-group-label">Sound Volume</div>
+                                        <div className="ambient-controls">
+                                            <div className="ambient-slider-container" style={{marginTop: '8px'}}>
+                                                <input
+                                                    type="range"
+                                                    className="ambient-slider"
+                                                    min="0"
+                                                    max="1"
+                                                    step="0.05"
+                                                    value={systemVolume}
+                                                    onChange={(e) => { initAudio(); handleSystemVolumeChange(parseFloat(e.target.value)); }}
+                                                />
+                                                <span className="ambient-volume-display">{Math.round(systemVolume * 100)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Activity Section */}
+                            <div className="activity-section">
+                                <div className="activity-header">
+                                    <span className="activity-title">Activity</span>
+                                    <span className="activity-stats">
+                                        {hoveredDay
+                                            ? `${hoveredDay.date}: ${hoveredDay.count} pomodoro${hoveredDay.count !== 1 ? 's' : ''}`
+                                            : `${totalPomodoros} pomodoros this year`
+                                        }
+                                    </span>
+                                </div>
+                                <div className="activity-grid" onMouseLeave={() => setHoveredDay(null)}>
+                                    {activityGrid.map((week, wi) => (
+                                        <div key={wi} className="activity-week">
+                                            {week.map((day, di) => (
+                                                <div
+                                                    key={di}
+                                                    className={`activity-day level-${day.level} ${day.date === todayStr ? 'today' : ''}`}
+                                                    onMouseEnter={() => setHoveredDay(day)}
+                                                />
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="activity-legend">
+                                    <span>Less</span>
+                                    <div className="legend-box activity-day" />
+                                    <div className="legend-box activity-day level-1" />
+                                    <div className="legend-box activity-day level-2" />
+                                    <div className="legend-box activity-day level-3" />
+                                    <div className="legend-box activity-day level-4" />
+                                    <span>More</span>
+                                </div>
+
+                                {todayLog.entries.length > 0 && (
+                                    <div className="today-log">
+                                        <div className="today-log-title">Today's Log</div>
+                                        {todayLog.entries.map((entry, i) => (
+                                            <div key={i} className="log-entry">
+                                                <span className="log-time">{entry.time}</span> — {entry.message}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // WebAuthn/Passkey helpers
+        const isPasskeySupported = () => {
+            return window.PublicKeyCredential !== undefined &&
+                   typeof window.PublicKeyCredential === 'function';
+        };
+
+        const generateChallenge = () => {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return array;
+        };
+
+        const bufferToBase64 = (buffer) => {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        };
+
+        const base64ToBuffer = (base64) => {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        // Auth Component - Simplified single flow
+        function AuthScreen({ onAuth }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [passkeySupported, setPasskeySupported] = useState(false);
+
+            useEffect(() => {
+                setPasskeySupported(isPasskeySupported());
+            }, []);
+
+            // Smart auth - tries sign in first, then sign up if user doesn't exist
+            const handleContinue = async (e) => {
+                e.preventDefault();
+                if (!supabase) {
+                    onAuth({ email, id: 'demo' });
+                    return;
+                }
+
+                setLoading(true);
+                setError('');
+
+                try {
+                    // Try sign in first
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+                    if (!signInError) {
+                        onAuth(signInData.user);
+                        return;
+                    }
+
+                    // If invalid credentials, try sign up (new user)
+                    if (signInError.message.includes('Invalid login credentials')) {
+                        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+                        if (signUpError) throw signUpError;
+                        if (signUpData.user) {
+                            onAuth(signUpData.user);
+                            return;
+                        }
+                    }
+
+                    throw signInError;
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handlePasskeyAuth = async () => {
+                setLoading(true);
+                setError('');
+
+                try {
+                    const existingPasskeys = JSON.parse(localStorage.getItem('activeTomatoPasskeys') || '[]');
+
+                    if (existingPasskeys.length === 0) {
+                        // No passkeys - need to create one
+                        // First, sign in with Supabase to get the real user ID
+                        const userEmail = prompt('Enter your email to create a passkey:');
+                        if (!userEmail) {
+                            setLoading(false);
+                            return;
+                        }
+                        const userPassword = prompt('Enter your password (to link passkey to your account):');
+                        if (!userPassword) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        // Sign in to Supabase to get the real user ID
+                        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                            email: userEmail,
+                            password: userPassword
+                        });
+
+                        if (signInError) {
+                            setError('Sign in failed: ' + signInError.message);
+                            setLoading(false);
+                            return;
+                        }
+
+                        const supabaseUserId = signInData.user.id;
+
+                        const challenge = generateChallenge();
+                        const passkeyUserId = new TextEncoder().encode(userEmail);
+
+                        const credential = await navigator.credentials.create({
+                            publicKey: {
+                                challenge,
+                                rp: { name: 'ActiveTomato', id: window.location.hostname },
+                                user: { id: passkeyUserId, name: userEmail, displayName: userEmail.split('@')[0] },
+                                pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                                authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred', residentKey: 'preferred' },
+                                timeout: 60000
+                            }
+                        });
+
+                        // Store passkey with Supabase user ID
+                        const passkeyData = {
+                            credentialId: bufferToBase64(credential.rawId),
+                            email: userEmail,
+                            supabaseUserId: supabaseUserId,
+                            createdAt: new Date().toISOString()
+                        };
+                        localStorage.setItem('activeTomatoPasskeys', JSON.stringify([passkeyData]));
+                        onAuth({ email: userEmail, id: supabaseUserId, passkey: true });
+                        return;
+                    }
+
+                    // Has passkeys - authenticate
+                    const allowCredentials = existingPasskeys.map(pk => ({
+                        type: 'public-key',
+                        id: base64ToBuffer(pk.credentialId),
+                        transports: ['internal', 'hybrid']
+                    }));
+
+                    const assertion = await navigator.credentials.get({
+                        publicKey: {
+                            challenge: generateChallenge(),
+                            rpId: window.location.hostname,
+                            allowCredentials,
+                            userVerification: 'preferred',
+                            timeout: 60000
+                        }
+                    });
+
+                    const usedCredentialId = bufferToBase64(assertion.rawId);
+                    const matchedPasskey = existingPasskeys.find(pk => pk.credentialId === usedCredentialId);
+
+                    if (matchedPasskey) {
+                        // Use the stored Supabase user ID, not the WebAuthn assertion ID
+                        const userId = matchedPasskey.supabaseUserId || matchedPasskey.email;
+                        onAuth({ email: matchedPasskey.email, id: userId, passkey: true });
+                    } else {
+                        setError('Passkey not recognized');
+                    }
+                } catch (err) {
+                    if (err.name !== 'NotAllowedError') {
+                        setError(err.message || 'Passkey failed');
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="auth-container">
+                    <h1 className="auth-title">ACTIVETOMATO</h1>
+                    <p className="auth-subtitle">High-Definition Pomodoro Timer</p>
+
+                    {isSupabaseConfigured && (
+                        <form className="auth-form" onSubmit={handleContinue}>
+                            <input
+                                type="email"
+                                className="auth-input"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                            <input
+                                type="password"
+                                className="auth-input"
+                                placeholder="Password (min 6 characters)"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                minLength={6}
+                                required
+                            />
+                            {error && <div className="auth-error">{error}</div>}
+                            <button type="submit" className="auth-btn" disabled={loading}>
+                                {loading ? 'Please wait...' : 'Continue'}
+                            </button>
+                        </form>
+                    )}
+
+                    {passkeySupported && (
+                        <p style={{fontSize: '0.7rem', color: '#888', textAlign: 'center', marginTop: '15px'}}>
+                            or <a
+                                onClick={handlePasskeyAuth}
+                                style={{color: '#555', cursor: 'pointer', textDecoration: 'underline'}}
+                            >
+                                use passkey
+                            </a>
+                        </p>
+                    )}
+
+                    {!isSupabaseConfigured && (
+                        <div className="auth-form" style={{textAlign: 'center'}}>
+                            <p style={{fontSize: '0.8rem', color: '#666'}}>Please configure Supabase to continue</p>
+                            {error && <div className="auth-error">{error}</div>}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Main App with Auth wrapper
+        function App() {
+            const [user, setUser] = useState(undefined); // undefined = loading, null = guest, object = logged in
+            const [authChecked, setAuthChecked] = useState(false);
+
+            useEffect(() => {
+                if (!supabase) {
+                    // No Supabase configured - show auth screen
+                    setAuthChecked(true);
+                    return;
+                }
+
+                // Check for existing session
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setUser(session?.user ?? undefined);
+                    setAuthChecked(true);
+                });
+
+                // Listen for auth changes
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setUser(session?.user ?? undefined);
+                });
+
+                return () => subscription.unsubscribe();
+            }, []);
+
+            const handleLogout = async () => {
+                if (supabase) {
+                    await supabase.auth.signOut();
+                }
+                setUser(undefined);
+            };
+
+            // Still checking auth
+            if (!authChecked) {
+                return (
+                    <div className="container">
+                        <div className="eink-screen">
+                            <div className="auth-container">
+                                <h1 className="auth-title">ACTIVETOMATO</h1>
+                                <p className="auth-subtitle">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Not logged in - show auth screen
+            if (user === undefined) {
+                return (
+                    <div className="container">
+                        <div className="eink-screen">
+                            <AuthScreen onAuth={setUser} />
+                        </div>
+                    </div>
+                );
+            }
+
+            // Logged in or guest mode - show main app
+            return <ActiveTomato user={user} onLogout={handleLogout} />;
+        }
+
+        // Detect Tauri and add class for frameless window styling
+        if (window.__TAURI__) {
+            document.body.classList.add('tauri-app');
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
