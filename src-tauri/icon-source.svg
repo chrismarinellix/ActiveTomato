@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- E-Ink charcoal background (opaque, full-bleed; iOS rounds the corners) -->
+  <rect width="1024" height="1024" fill="#1A1A1A"/>
+
+  <!-- Tomato body: plump, slightly wider than tall, with a soft top dimple -->
+  <path d="M512 348
+           C 712 348 828 470 828 606
+           C 828 762 690 858 512 858
+           C 334 858 196 762 196 606
+           C 196 470 312 348 512 348 Z"
+        fill="#ECE8E0"/>
+
+  <!-- Top dimple shadow to read as a real tomato -->
+  <path d="M512 348
+           C 452 348 404 372 392 412
+           C 436 392 472 386 512 386
+           C 552 386 588 392 632 412
+           C 620 372 572 348 512 348 Z"
+        fill="#1A1A1A" opacity="0.18"/>
+
+  <!-- Calyx (leaf star) — gaps to the charcoal background keep it monochrome and crisp -->
+  <g fill="#ECE8E0">
+    <path d="M512 372
+             L 470 250 L 512 300 L 554 250 Z"/>
+    <path d="M512 372
+             L 372 282 L 430 320 L 416 256 Z"/>
+    <path d="M512 372
+             L 652 282 L 594 320 L 608 256 Z"/>
+    <path d="M512 372
+             L 300 372 L 388 358 L 348 318 Z"/>
+    <path d="M512 372
+             L 724 372 L 636 358 L 676 318 Z"/>
+  </g>
+
+  <!-- Stem -->
+  <rect x="498" y="206" width="28" height="92" rx="14" fill="#ECE8E0"/>
+
+  <!-- Subtle highlight on the body for depth -->
+  <ellipse cx="420" cy="500" rx="70" ry="46" fill="#FFFFFF" opacity="0.20" transform="rotate(-22 420 500)"/>
+</svg>
