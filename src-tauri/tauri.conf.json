@@ -5,8 +5,8 @@
   "identifier": "com.activetomato.app",
   "build": {
     "frontendDist": "../dist",
-    "beforeDevCommand": "cp index.html dist/index.html",
-    "beforeBuildCommand": "cp index.html dist/index.html"
+    "beforeDevCommand": "cp index.html dist/index.html && rm -rf dist/vendor && cp -R vendor dist/vendor",
+    "beforeBuildCommand": "cp index.html dist/index.html && rm -rf dist/vendor && cp -R vendor dist/vendor"
   },
   "app": {
     "windows": [
