@@ -1,40 +1,47 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- E-Ink charcoal background (opaque, full-bleed; iOS rounds the corners) -->
-  <rect width="1024" height="1024" fill="#1A1A1A"/>
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="32%" r="85%">
+      <stop offset="0%" stop-color="#262626"/>
+      <stop offset="55%" stop-color="#161616"/>
+      <stop offset="100%" stop-color="#0B0B0B"/>
+    </radialGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF5A3C"/>
+      <stop offset="100%" stop-color="#D8281C"/>
+    </linearGradient>
+  </defs>
 
-  <!-- Tomato body: plump, slightly wider than tall, with a soft top dimple -->
-  <path d="M512 348
-           C 712 348 828 470 828 606
-           C 828 762 690 858 512 858
-           C 334 858 196 762 196 606
-           C 196 470 312 348 512 348 Z"
-        fill="#ECE8E0"/>
+  <!-- Deep charcoal background (opaque, full-bleed; iOS rounds corners) -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
 
-  <!-- Top dimple shadow to read as a real tomato -->
-  <path d="M512 348
-           C 452 348 404 372 392 412
-           C 436 392 472 386 512 386
-           C 552 386 588 392 632 412
-           C 620 372 572 348 512 348 Z"
-        fill="#1A1A1A" opacity="0.18"/>
+  <!-- Timer dial: full track ring (the "tomato" body) -->
+  <circle cx="512" cy="540" r="300" fill="none" stroke="#2E2E2E" stroke-width="86"/>
+  <circle cx="512" cy="540" r="300" fill="none" stroke="#ECE8E0" stroke-width="78" stroke-opacity="0.18"/>
 
-  <!-- Calyx (leaf star) — gaps to the charcoal background keep it monochrome and crisp -->
-  <g fill="#ECE8E0">
-    <path d="M512 372
-             L 470 250 L 512 300 L 554 250 Z"/>
-    <path d="M512 372
-             L 372 282 L 430 320 L 416 256 Z"/>
-    <path d="M512 372
-             L 652 282 L 594 320 L 608 256 Z"/>
-    <path d="M512 372
-             L 300 372 L 388 358 L 348 318 Z"/>
-    <path d="M512 372
-             L 724 372 L 636 358 L 676 318 Z"/>
+  <!-- Red progress arc, ~72% sweep from 12 o'clock clockwise, rounded caps -->
+  <path d="M512 240 A300 300 0 1 1 252 690"
+        fill="none" stroke="url(#arc)" stroke-width="78" stroke-linecap="round"/>
+
+  <!-- Minute tick marks around the dial -->
+  <g stroke="#ECE8E0" stroke-opacity="0.30" stroke-width="8" stroke-linecap="round">
+    <line x1="512" y1="284" x2="512" y2="312"/>
+    <line x1="740" y1="540" x2="712" y2="540"/>
+    <line x1="512" y1="796" x2="512" y2="768"/>
+    <line x1="284" y1="540" x2="312" y2="540"/>
   </g>
 
-  <!-- Stem -->
-  <rect x="498" y="206" width="28" height="92" rx="14" fill="#ECE8E0"/>
+  <!-- Centered countdown glyph -->
+  <text x="512" y="576" font-family="Menlo, ui-monospace, monospace" font-size="150"
+        font-weight="700" fill="#ECE8E0" text-anchor="middle" letter-spacing="-6">25</text>
 
-  <!-- Subtle highlight on the body for depth -->
-  <ellipse cx="420" cy="500" rx="70" ry="46" fill="#FFFFFF" opacity="0.20" transform="rotate(-22 420 500)"/>
+  <!-- Tomato leaf + stem on top, sells the "pomodoro" read -->
+  <g>
+    <rect x="498" y="150" width="28" height="74" rx="14" fill="#39B54A"/>
+    <g fill="#39B54A">
+      <path d="M512 236 L 452 150 L 500 186 Z"/>
+      <path d="M512 236 L 572 150 L 524 186 Z"/>
+      <path d="M512 236 L 420 214 L 492 200 Z"/>
+      <path d="M512 236 L 604 214 L 532 200 Z"/>
+    </g>
+  </g>
 </svg>
