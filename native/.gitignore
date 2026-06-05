@@ -1,0 +1,6 @@
+# xcodegen generates the project from project.yml — don't track it
+ActiveTomato.xcodeproj/
+build/
+DerivedData/
+.DS_Store
+*.xcuserstate
