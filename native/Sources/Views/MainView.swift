@@ -14,6 +14,9 @@ struct MainView: View {
                     TimerDisplay(engine: engine)
                         .padding(.vertical, 6)
                     Controls(engine: engine)
+                    Divider().overlay(Color.black.opacity(0.1)).padding(.top, 4)
+                    ActivitySection(engine: engine)
+                    SettingsPanels(engine: engine, settings: engine.settings)
                 }
             }
             .padding(.vertical, 24)

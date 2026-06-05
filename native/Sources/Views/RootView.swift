@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @StateObject private var engine = TimerEngine()
+    @StateObject private var engine = TimerEngine(settings: AppSettings(), sound: SoundEngine())
 
     var body: some View {
         ZStack {
