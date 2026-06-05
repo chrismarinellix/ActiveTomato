@@ -23,6 +23,8 @@ struct EInkCard<Content: View>: View {
 
 struct HeaderView: View {
     @ObservedObject var engine: TimerEngine
+    @ObservedObject var auth: AuthManager
+    @ObservedObject var cloud: CloudStore
 
     var body: some View {
         HStack(alignment: .top) {
@@ -33,7 +35,19 @@ struct HeaderView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(Theme.ink)
-                SyncIndicator(state: .local)
+                HStack(spacing: 8) {
+                    if let name = auth.displayName {
+                        Text(name).font(Theme.mono(10)).foregroundStyle(Theme.gray666)
+                    }
+                    Button("Logout") { auth.signOut() }
+                        .font(Theme.mono(9))
+                        .tracking(1)
+                        .foregroundStyle(Theme.gray666)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.black.opacity(0.2), lineWidth: 1))
+                        .buttonStyle(.plain)
+                    SyncIndicator(state: syncState)
+                }
             }
             Spacer()
             HStack(spacing: 18) {
@@ -51,6 +65,14 @@ struct HeaderView: View {
                         .background(Theme.ink, in: RoundedRectangle(cornerRadius: 3))
                 }
             }
+        }
+    }
+
+    private var syncState: SyncIndicator.State {
+        switch cloud.status {
+        case .connecting: return .connecting
+        case .connected:  return .connected
+        case .error:      return .error
         }
     }
 }

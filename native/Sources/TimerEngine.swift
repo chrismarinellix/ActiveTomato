@@ -29,15 +29,17 @@ final class TimerEngine: ObservableObject {
 
     let settings: AppSettings
     let sound: SoundEngine
+    let cloud: CloudStore?
 
     private var ticker: AnyCancellable?
     private var reminderTicker: AnyCancellable?
     private var idleSeconds = 0
     private let defaults = UserDefaults.standard
 
-    init(settings: AppSettings, sound: SoundEngine) {
+    init(settings: AppSettings, sound: SoundEngine, cloud: CloudStore? = nil) {
         self.settings = settings
         self.sound = sound
+        self.cloud = cloud
         sound.masterVolume = settings.systemVolume
         load()
         settings.reminderChanged = { [weak self] in self?.updateReminder() }
@@ -67,6 +69,7 @@ final class TimerEngine: ObservableObject {
         if settings.voiceCuesEnabled { sound.speak(mode == .work ? "Focus" : "Break") }
         log("Started \(mode.label)")
         updateReminder()
+        pushTimerState()
         ticker = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.tick() }
@@ -78,6 +81,7 @@ final class TimerEngine: ObservableObject {
         ticker?.cancel(); ticker = nil
         if wasRunning && settings.soundEnabled { sound.tone(330, 0.1); sound.tone(220, 0.1, delay: 0.06) }
         updateReminder()
+        if wasRunning { pushTimerState() }
     }
 
     func toggle() { isRunning ? pause() : start() }
@@ -85,6 +89,7 @@ final class TimerEngine: ObservableObject {
     func reset() {
         pause()
         timeLeft = duration
+        pushTimerState()
     }
 
     func change(to newMode: TimerMode) {
@@ -261,6 +266,50 @@ final class TimerEngine: ObservableObject {
         defaults.set(Self.todayKey(), forKey: "todayDate")
         defaults.set(todayCount, forKey: "todayCount")
         defaults.set(activityData, forKey: "activity")
+        pushToCloud()
+    }
+
+    // MARK: CloudKit sync
+
+    /// Pull cloud state and merge it into local (no data loss: max-wins).
+    func pullFromCloud() async {
+        guard let cloud else { return }
+        if let data = await cloud.loadAppData() {
+            totalPoints = max(totalPoints, data.points)
+            for (k, v) in data.activity { activityData[k] = max(activityData[k] ?? 0, v) }
+            if data.todayDate == Self.todayKey() { todayCount = max(todayCount, data.todayCount) }
+            save()
+        }
+        if let ts = await cloud.loadTimerState() { applyRemoteTimerState(ts) }
+    }
+
+    private func pushToCloud() {
+        guard let cloud else { return }
+        let snapshot = CloudStore.AppData(points: totalPoints, todayCount: todayCount,
+                                          todayDate: Self.todayKey(), activity: activityData)
+        Task { await cloud.saveAppData(snapshot) }
+    }
+
+    private func pushTimerState() {
+        guard let cloud else { return }
+        let s = CloudStore.TimerState(mode: mode.rawValue, timeLeft: timeLeft, isRunning: isRunning,
+                                      startedAt: nil, seriesTarget: seriesTarget,
+                                      seriesProgress: seriesProgress)
+        Task { await cloud.saveTimerState(s) }
+    }
+
+    /// Apply timer state from another device (reconstruct remaining time).
+    private func applyRemoteTimerState(_ ts: CloudStore.TimerState) {
+        guard !isRunning else { return }   // never clobber an active local timer
+        if let m = TimerMode(rawValue: ts.mode) { mode = m }
+        seriesTarget = ts.seriesTarget
+        seriesProgress = ts.seriesProgress
+        var remaining = ts.timeLeft
+        if ts.isRunning, let started = ts.startedAt {
+            remaining = max(0, ts.timeLeft - Int(Date().timeIntervalSince(started)))
+        }
+        timeLeft = remaining
+        if ts.isRunning, remaining > 0 { start() }
     }
 
     private func saveLog() {
