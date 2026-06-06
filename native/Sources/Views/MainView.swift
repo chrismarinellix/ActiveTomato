@@ -3,13 +3,12 @@ import SwiftUI
 struct MainView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var auth: AuthManager
-    @ObservedObject var cloud: CloudStore
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             EInkCard {
                 VStack(spacing: 18) {
-                    HeaderView(engine: engine, auth: auth, cloud: cloud)
+                    HeaderView(engine: engine, auth: auth)
                     Divider().overlay(Color.black.opacity(0.1))
                     SeriesSelector(engine: engine)
                     ModeTabs(engine: engine)

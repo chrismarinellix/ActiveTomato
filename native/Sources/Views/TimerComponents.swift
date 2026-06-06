@@ -24,7 +24,6 @@ struct EInkCard<Content: View>: View {
 struct HeaderView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var auth: AuthManager
-    @ObservedObject var cloud: CloudStore
 
     var body: some View {
         HStack(alignment: .top) {
@@ -35,18 +34,8 @@ struct HeaderView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(Theme.ink)
-                HStack(spacing: 8) {
-                    if let name = auth.displayName {
-                        Text(name).font(Theme.mono(10)).foregroundStyle(Theme.gray666)
-                    }
-                    Button("Logout") { auth.signOut() }
-                        .font(Theme.mono(9))
-                        .tracking(1)
-                        .foregroundStyle(Theme.gray666)
-                        .padding(.horizontal, 7).padding(.vertical, 3)
-                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.black.opacity(0.2), lineWidth: 1))
-                        .buttonStyle(.plain)
-                    SyncIndicator(state: syncState)
+                if let name = auth.displayName {
+                    Text(name).font(Theme.mono(10)).foregroundStyle(Theme.gray666)
                 }
             }
             Spacer()
@@ -67,14 +56,6 @@ struct HeaderView: View {
             }
         }
     }
-
-    private var syncState: SyncIndicator.State {
-        switch cloud.status {
-        case .connecting: return .connecting
-        case .connected:  return .connected
-        case .error:      return .error
-        }
-    }
 }
 
 struct StatBox: View {
@@ -86,37 +67,6 @@ struct StatBox: View {
                 .foregroundStyle(Theme.gray999)
             Text(value).font(Theme.display(20, .semibold)).foregroundStyle(Theme.ink)
         }
-    }
-}
-
-struct SyncIndicator: View {
-    enum State { case local, connecting, connected, error }
-    let state: State
-
-    private var text: String {
-        switch state {
-        case .local:      return "Local"
-        case .connecting: return "..."
-        case .connected:  return "Synced"
-        case .error:      return "Offline"
-        }
-    }
-    private var color: Color {
-        switch state {
-        case .local:      return Theme.gray888
-        case .connecting: return Theme.syncAmber
-        case .connected:  return Theme.syncGreen
-        case .error:      return Theme.syncRed
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(text).font(Theme.mono(10)).foregroundStyle(color)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(Color.black.opacity(0.04), in: RoundedRectangle(cornerRadius: 3))
     }
 }
 
