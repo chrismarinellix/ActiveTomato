@@ -30,7 +30,7 @@ struct HeaderView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ACTIVETOMATO")
-                    .font(Theme.mono(16, .semibold))
+                    .font(Theme.display(16, .semibold))
                     .tracking(2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -56,7 +56,7 @@ struct HeaderView: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("LEVEL").font(Theme.mono(9)).tracking(1).foregroundStyle(Theme.gray999)
                     Text(engine.level.title)
-                        .font(Theme.mono(10, .semibold))
+                        .font(Theme.display(10, .semibold))
                         .tracking(1)
                         .lineLimit(1)
                         .fixedSize()
@@ -84,7 +84,7 @@ struct StatBox: View {
         VStack(alignment: .trailing, spacing: 4) {
             Text(label).font(Theme.mono(9)).tracking(1).fixedSize()
                 .foregroundStyle(Theme.gray999)
-            Text(value).font(Theme.mono(20, .semibold)).foregroundStyle(Theme.ink)
+            Text(value).font(Theme.display(20, .semibold)).foregroundStyle(Theme.ink)
         }
     }
 }
@@ -224,7 +224,7 @@ struct TimerDisplay: View {
                 .foregroundStyle(Theme.gray888)
 
             Text(engine.timeString)
-                .font(.system(size: 96, weight: .bold, design: .monospaced))
+                .font(Theme.display(96, .bold))
                 .tracking(-4)
                 .foregroundStyle(Theme.inkDark)
                 .lineLimit(1)

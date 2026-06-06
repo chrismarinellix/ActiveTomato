@@ -67,6 +67,7 @@ final class TimerEngine: ObservableObject {
         sound.masterVolume = settings.systemVolume
         if settings.soundEnabled { sound.tone(220, 0.12); sound.tone(330, 0.12, delay: 0.06) }
         if settings.voiceCuesEnabled { sound.speak(mode == .work ? "Focus" : "Break") }
+        Haptics.light()
         log("Started \(mode.label)")
         updateReminder()
         pushTimerState()
@@ -79,7 +80,10 @@ final class TimerEngine: ObservableObject {
         let wasRunning = isRunning
         isRunning = false
         ticker?.cancel(); ticker = nil
-        if wasRunning && settings.soundEnabled { sound.tone(330, 0.1); sound.tone(220, 0.1, delay: 0.06) }
+        if wasRunning {
+            if settings.soundEnabled { sound.tone(330, 0.1); sound.tone(220, 0.1, delay: 0.06) }
+            Haptics.light()
+        }
         updateReminder()
         if wasRunning { pushTimerState() }
     }
@@ -95,6 +99,7 @@ final class TimerEngine: ObservableObject {
     func change(to newMode: TimerMode) {
         pause()
         if settings.soundEnabled { sound.tone(660, 0.08, amp: 0.18) }
+        Haptics.rigid()
         mode = newMode
         timeLeft = newMode.duration
     }
@@ -147,6 +152,7 @@ final class TimerEngine: ObservableObject {
             sessionsCompleted += 1
             activityData[Self.todayKey(), default: 0] += 1
             log("Completed pomodoro! +25 pts")
+            Haptics.success()
             if settings.soundEnabled { playCompletionMelody() }
             if settings.voiceCuesEnabled { sound.speak("Pomodoro complete") }
             save()

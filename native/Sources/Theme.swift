@@ -21,10 +21,25 @@ enum Theme {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
-    /// Monospaced face. Falls back to the system mono until the real
-    /// JetBrains Mono / IBM Plex Mono TTFs are bundled (Phase 4).
+    /// UI / body / controls — IBM Plex Mono (matches the web app).
     static func mono(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        let name: String
+        switch weight {
+        case .medium, .semibold, .bold, .heavy, .black: name = "IBMPlexMono-Medium"
+        default: name = "IBMPlexMono-Regular"
+        }
+        return .custom(name, size: size)
+    }
+
+    /// Headings / digits / stat values — JetBrains Mono.
+    static func display(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let name: String
+        switch weight {
+        case .bold, .heavy, .black:   name = "JetBrainsMono-Bold"
+        case .semibold, .medium:      name = "JetBrainsMono-SemiBold"
+        default:                      name = "JetBrainsMono-Regular"
+        }
+        return .custom(name, size: size)
     }
 }
 

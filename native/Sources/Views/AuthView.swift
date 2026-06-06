@@ -10,7 +10,7 @@ struct AuthView: View {
                 VStack(spacing: 30) {
                     VStack(spacing: 10) {
                         Text("ACTIVETOMATO")
-                            .font(Theme.mono(26, .semibold))
+                            .font(Theme.display(26, .semibold))
                             .tracking(5)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
