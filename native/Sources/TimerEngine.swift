@@ -235,6 +235,25 @@ final class TimerEngine: ObservableObject {
         }
     }
 
+    // MARK: Account deletion (App Store guideline 5.1.1(v))
+
+    /// Erase all of the user's data — locally and in iCloud.
+    func deleteAllData() async {
+        pause()
+        totalPoints = 0
+        todayCount = 0
+        sessionsCompleted = 0
+        seriesProgress = 0
+        activityData = [:]
+        todayLog = []
+        for key in ["points", "todayDate", "todayCount", "activity", "logDate", "log"] {
+            defaults.removeObject(forKey: key)
+        }
+        mode = .work
+        timeLeft = mode.duration
+        await cloud?.deleteAll()
+    }
+
     // MARK: Toast + log
 
     func notify(_ message: String) {

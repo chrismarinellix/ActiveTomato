@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsPanels: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var settings: AppSettings
+    @ObservedObject var auth: AuthManager
+    @State private var showDelete = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -41,6 +43,30 @@ struct SettingsPanels: View {
             Panel(title: "CHAIN MODE") {
                 ToggleRow(title: "Chain Sessions (auto-advance)", isOn: $settings.autoSeriesEnabled)
             }
+
+            Panel(title: "ACCOUNT") {
+                Button(role: .destructive) {
+                    showDelete = true
+                } label: {
+                    Text("Delete Account")
+                        .font(Theme.mono(11, .medium))
+                        .foregroundStyle(Theme.errorRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .confirmationDialog(
+            "Delete your account? This permanently erases your points, history, and synced data on all your Apple devices.",
+            isPresented: $showDelete, titleVisibility: .visible
+        ) {
+            Button("Delete Everything", role: .destructive) {
+                Task {
+                    await engine.deleteAllData()
+                    auth.signOut()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 }

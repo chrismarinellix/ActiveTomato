@@ -17,7 +17,7 @@ struct MainView: View {
                     Controls(engine: engine)
                     Divider().overlay(Color.black.opacity(0.1)).padding(.top, 4)
                     ActivitySection(engine: engine)
-                    SettingsPanels(engine: engine, settings: engine.settings)
+                    SettingsPanels(engine: engine, settings: engine.settings, auth: auth)
                 }
             }
             .padding(.vertical, 24)

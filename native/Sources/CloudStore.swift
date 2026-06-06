@@ -93,6 +93,14 @@ final class CloudStore: ObservableObject {
                           seriesProgress: (r["seriesProgress"] as? Int) ?? 0)
     }
 
+    /// Delete all of the user's records from their private database
+    /// (for in-app account deletion / App Store guideline 5.1.1(v)).
+    func deleteAll() async {
+        for id in [appDataID, timerID] {
+            _ = try? await db.deleteRecord(withID: id)
+        }
+    }
+
     // MARK: Helper
 
     private func persist(_ record: CKRecord) async {
