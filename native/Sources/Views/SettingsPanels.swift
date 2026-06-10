@@ -4,6 +4,7 @@ struct SettingsPanels: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var auth: AuthManager
+    @EnvironmentObject var pro: ProStore
     @State private var showDelete = false
 
     var body: some View {
@@ -21,7 +22,11 @@ struct SettingsPanels: View {
                             options: [("soft", "Soft"), ("click", "Click"),
                                       ("pulse", "Pulse"), ("woodblock", "Woodblock")])
                 }
-                ToggleRow(title: "Voice Cues", isOn: $settings.voiceCuesEnabled)
+                if pro.isPro {
+                    ToggleRow(title: "Voice Cues", isOn: $settings.voiceCuesEnabled)
+                } else {
+                    LockedRow(title: "Voice Cues") { pro.showPaywall = true }
+                }
                 HStack {
                     Text("Volume").font(Theme.mono(11)).foregroundStyle(Theme.gray333)
                     Slider(value: $settings.systemVolume, in: 0...1)
@@ -41,7 +46,42 @@ struct SettingsPanels: View {
             }
 
             Panel(title: "CHAIN MODE") {
-                ToggleRow(title: "Chain Sessions (auto-advance)", isOn: $settings.autoSeriesEnabled)
+                if pro.isPro {
+                    ToggleRow(title: "Chain Sessions (auto-advance)", isOn: $settings.autoSeriesEnabled)
+                } else {
+                    LockedRow(title: "Chain Sessions (auto-advance)") { pro.showPaywall = true }
+                }
+            }
+
+            Panel(title: "PRO") {
+                if pro.isPro {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.ink)
+                        Text("Pro unlocked — thank you!")
+                            .font(Theme.mono(11)).foregroundStyle(Theme.gray333)
+                    }
+                } else {
+                    Button {
+                        pro.showPaywall = true
+                    } label: {
+                        Text("Unlock ActiveTomato Pro — \(pro.product?.displayPrice ?? "$2.99")")
+                            .font(Theme.mono(11, .medium))
+                            .foregroundStyle(Theme.ink)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button {
+                    Task { await pro.restore() }
+                } label: {
+                    Text("Restore Purchases")
+                        .font(Theme.mono(11))
+                        .foregroundStyle(Theme.gray666)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
 
             Panel(title: "ACCOUNT") {
@@ -95,6 +135,28 @@ private struct ToggleRow: View {
             Text(title).font(Theme.mono(11)).foregroundStyle(Theme.gray333)
         }
         .tint(Theme.ink)
+    }
+}
+
+/// A settings row whose feature is Pro-gated; tapping opens the paywall.
+private struct LockedRow: View {
+    let title: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(Theme.mono(11)).foregroundStyle(Theme.gray999)
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill").font(.system(size: 9))
+                    Text("PRO").font(Theme.mono(9, .medium)).tracking(1)
+                }
+                .foregroundStyle(Theme.gray666)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color.black.opacity(0.05), in: RoundedRectangle(cornerRadius: 3))
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 

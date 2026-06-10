@@ -24,6 +24,7 @@ struct EInkCard<Content: View>: View {
 struct HeaderView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var auth: AuthManager
+    @EnvironmentObject var pro: ProStore
 
     var body: some View {
         HStack(alignment: .top) {
@@ -39,20 +40,37 @@ struct HeaderView: View {
                 }
             }
             Spacer()
-            HStack(spacing: 18) {
-                StatBox(label: "POINTS", value: "\(engine.totalPoints)")
-                StatBox(label: "TODAY", value: "\(engine.todayCount)")
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("LEVEL").font(Theme.mono(9)).tracking(1).foregroundStyle(Theme.gray999)
-                    Text(engine.level.title)
-                        .font(Theme.display(10, .semibold))
-                        .tracking(1)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .foregroundStyle(Theme.paper)
-                        .padding(.horizontal, 9).padding(.vertical, 4)
-                        .background(Theme.ink, in: RoundedRectangle(cornerRadius: 3))
+            if pro.isPro {
+                HStack(spacing: 18) {
+                    StatBox(label: "POINTS", value: "\(engine.totalPoints)")
+                    StatBox(label: "TODAY", value: "\(engine.todayCount)")
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("LEVEL").font(Theme.mono(9)).tracking(1).foregroundStyle(Theme.gray999)
+                        Text(engine.level.title)
+                            .font(Theme.display(10, .semibold))
+                            .tracking(1)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .foregroundStyle(Theme.paper)
+                            .padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(Theme.ink, in: RoundedRectangle(cornerRadius: 3))
+                    }
                 }
+            } else {
+                Button {
+                    pro.showPaywall = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "lock.fill").font(.system(size: 9))
+                        Text("GO PRO")
+                            .font(Theme.display(10, .semibold))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(Theme.paper)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Theme.ink, in: RoundedRectangle(cornerRadius: 3))
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -74,6 +92,7 @@ struct StatBox: View {
 
 struct SeriesSelector: View {
     @ObservedObject var engine: TimerEngine
+    @EnvironmentObject var pro: ProStore
 
     var body: some View {
         VStack(spacing: 12) {
@@ -82,7 +101,11 @@ struct SeriesSelector: View {
                     .foregroundStyle(Theme.gray666)
                 ForEach(1...6, id: \.self) { n in
                     Button {
-                        engine.setSeries(n)
+                        if n > 1, !pro.isPro {
+                            pro.showPaywall = true
+                        } else {
+                            engine.setSeries(n)
+                        }
                     } label: {
                         Text(n == 1 ? "Single" : "\(n)x")
                             .font(Theme.mono(11))

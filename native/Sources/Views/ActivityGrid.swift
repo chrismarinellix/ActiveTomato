@@ -3,6 +3,7 @@ import SwiftUI
 /// GitHub-style contribution grid (monochrome) + today's log.
 struct ActivitySection: View {
     @ObservedObject var engine: TimerEngine
+    @EnvironmentObject var pro: ProStore
     private let weeks = 17
     private let rows = 7
 
@@ -15,33 +16,17 @@ struct ActivitySection: View {
             HStack {
                 Text("ACTIVITY").font(Theme.mono(11)).tracking(2).foregroundStyle(Theme.gray666)
                 Spacer()
-                Text("\(engine.yearTotal) pomodoros this year")
-                    .font(Theme.mono(10)).foregroundStyle(Theme.gray999)
-            }
-
-            Canvas { ctx, size in
-                let gap = 2.0
-                let cell = (size.width - gap * Double(weeks - 1)) / Double(weeks)
-                for col in 0..<weeks {
-                    for row in 0..<rows {
-                        let rect = CGRect(x: Double(col) * (cell + gap),
-                                          y: Double(row) * (cell + gap),
-                                          width: cell, height: cell)
-                        ctx.fill(Path(roundedRect: rect, cornerRadius: 1),
-                                 with: .color(color(col: col, row: row)))
-                    }
+                if pro.isPro {
+                    Text("\(engine.yearTotal) pomodoros this year")
+                        .font(Theme.mono(10)).foregroundStyle(Theme.gray999)
                 }
             }
-            .aspectRatio(CGFloat(weeks) / CGFloat(rows), contentMode: .fit)
-            .frame(maxWidth: .infinity)
 
-            HStack(spacing: 4) {
-                Text("Less").font(Theme.mono(9)).foregroundStyle(Theme.gray999)
-                ForEach(0..<5, id: \.self) { l in
-                    RoundedRectangle(cornerRadius: 1).fill(shade(level: l, isToday: false))
-                        .frame(width: 9, height: 9)
-                }
-                Text("More").font(Theme.mono(9)).foregroundStyle(Theme.gray999)
+            if pro.isPro {
+                grid
+                legend
+            } else {
+                lockedTeaser
             }
 
             if !engine.todayLog.isEmpty {
@@ -57,6 +42,58 @@ struct ActivitySection: View {
                 }
             }
         }
+    }
+
+    private var grid: some View {
+        Canvas { ctx, size in
+            let gap = 2.0
+            let cell = (size.width - gap * Double(weeks - 1)) / Double(weeks)
+            for col in 0..<weeks {
+                for row in 0..<rows {
+                    let rect = CGRect(x: Double(col) * (cell + gap),
+                                      y: Double(row) * (cell + gap),
+                                      width: cell, height: cell)
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: 1),
+                             with: .color(color(col: col, row: row)))
+                }
+            }
+        }
+        .aspectRatio(CGFloat(weeks) / CGFloat(rows), contentMode: .fit)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var legend: some View {
+        HStack(spacing: 4) {
+            Text("Less").font(Theme.mono(9)).foregroundStyle(Theme.gray999)
+            ForEach(0..<5, id: \.self) { l in
+                RoundedRectangle(cornerRadius: 1).fill(shade(level: l, isToday: false))
+                    .frame(width: 9, height: 9)
+            }
+            Text("More").font(Theme.mono(9)).foregroundStyle(Theme.gray999)
+        }
+    }
+
+    /// Shown to free users in place of the grid.
+    private var lockedTeaser: some View {
+        Button {
+            pro.showPaywall = true
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Theme.gray666)
+                Text("Activity grid, points & levels are part of Pro")
+                    .font(Theme.mono(10))
+                    .foregroundStyle(Theme.gray666)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+            .background(Color.black.opacity(0.03), in: RoundedRectangle(cornerRadius: 3))
+            .overlay(RoundedRectangle(cornerRadius: 3)
+                .strokeBorder(Color.black.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Date / color math

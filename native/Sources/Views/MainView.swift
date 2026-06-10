@@ -3,6 +3,7 @@ import SwiftUI
 struct MainView: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var auth: AuthManager
+    @EnvironmentObject var pro: ProStore
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -35,5 +36,8 @@ struct MainView: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: engine.toast)
+        .sheet(isPresented: $pro.showPaywall) {
+            PaywallView(pro: pro)
+        }
     }
 }

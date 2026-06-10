@@ -16,6 +16,18 @@ settings:
     GENERATE_INFOPLIST_FILE: NO
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
+schemes:
+  ActiveTomato:
+    build:
+      targets:
+        ActiveTomato: all
+    run:
+      config: Debug
+      # Local/sandbox testing of the Pro IAP without App Store Connect.
+      storeKitConfiguration: ActiveTomato.storekit
+    archive:
+      config: Release
+
 targets:
   ActiveTomato:
     type: application

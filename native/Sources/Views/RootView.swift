@@ -37,6 +37,7 @@ private struct ContentGate: View {
     var body: some View {
         if auth.isSignedIn {
             MainView(engine: app.engine, auth: app.auth)
+                .environmentObject(app.pro)
         } else {
             AuthView(auth: app.auth)
         }

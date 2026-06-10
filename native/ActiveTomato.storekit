@@ -1,0 +1,38 @@
+{
+  "identifier" : "B5E1D9F0-4C2A-4F8E-9D31-7A6B2C8E5F10",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "F2A7C4E1-8B3D-4A6F-B5C9-1E0D7F4A2B86",
+      "localizations" : [
+        {
+          "description" : "Chains, activity grid, levels, iCloud sync & voice cues",
+          "displayName" : "ActiveTomato Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.activetomato.app.pro",
+      "referenceName" : "ActiveTomato Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

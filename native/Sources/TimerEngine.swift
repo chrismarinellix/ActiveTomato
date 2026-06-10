@@ -30,16 +30,22 @@ final class TimerEngine: ObservableObject {
     let settings: AppSettings
     let sound: SoundEngine
     let cloud: CloudStore?
+    let pro: ProStore?
+
+    /// Pro-gated features check; engines created without a ProStore
+    /// (previews/tests) are treated as unlocked.
+    private var isPro: Bool { pro?.isPro ?? true }
 
     private var ticker: AnyCancellable?
     private var reminderTicker: AnyCancellable?
     private var idleSeconds = 0
     private let defaults = UserDefaults.standard
 
-    init(settings: AppSettings, sound: SoundEngine, cloud: CloudStore? = nil) {
+    init(settings: AppSettings, sound: SoundEngine, cloud: CloudStore? = nil, pro: ProStore? = nil) {
         self.settings = settings
         self.sound = sound
         self.cloud = cloud
+        self.pro = pro
         sound.masterVolume = settings.systemVolume
         load()
         settings.reminderChanged = { [weak self] in self?.updateReminder() }
@@ -153,7 +159,7 @@ final class TimerEngine: ObservableObject {
             log("Completed pomodoro! +25 pts")
             Haptics.success()
             if settings.soundEnabled { playCompletionMelody() }
-            if settings.voiceCuesEnabled { sound.speak("Pomodoro complete") }
+            if settings.voiceCuesEnabled, isPro { sound.speak("Pomodoro complete") }
             save()
 
             if seriesTarget > 1 {
@@ -297,7 +303,7 @@ final class TimerEngine: ObservableObject {
 
     /// Pull cloud state and merge it into local (no data loss: max-wins).
     func pullFromCloud() async {
-        guard let cloud else { return }
+        guard let cloud, isPro else { return }
         if let data = await cloud.loadAppData() {
             totalPoints = max(totalPoints, data.points)
             for (k, v) in data.activity { activityData[k] = max(activityData[k] ?? 0, v) }
@@ -308,14 +314,14 @@ final class TimerEngine: ObservableObject {
     }
 
     private func pushToCloud() {
-        guard let cloud else { return }
+        guard let cloud, isPro else { return }
         let snapshot = CloudStore.AppData(points: totalPoints, todayCount: todayCount,
                                           todayDate: Self.todayKey(), activity: activityData)
         Task { await cloud.saveAppData(snapshot) }
     }
 
     private func pushTimerState() {
-        guard let cloud else { return }
+        guard let cloud, isPro else { return }
         let s = CloudStore.TimerState(mode: mode.rawValue, timeLeft: timeLeft, isRunning: isRunning,
                                       startedAt: nil, seriesTarget: seriesTarget,
                                       seriesProgress: seriesProgress)
