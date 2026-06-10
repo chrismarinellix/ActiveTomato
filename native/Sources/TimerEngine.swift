@@ -66,7 +66,6 @@ final class TimerEngine: ObservableObject {
         isRunning = true
         sound.masterVolume = settings.systemVolume
         if settings.soundEnabled { sound.tone(220, 0.12); sound.tone(330, 0.12, delay: 0.06) }
-        if settings.voiceCuesEnabled { sound.speak(mode == .work ? "Focus" : "Break") }
         Haptics.light()
         log("Started \(mode.label)")
         updateReminder()
