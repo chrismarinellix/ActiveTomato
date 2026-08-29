@@ -6,7 +6,6 @@ final class AppModel: ObservableObject {
     let settings = AppSettings()
     let sound = SoundEngine()
     let cloud = CloudStore()
-    let auth = AuthManager()
     let pro = ProStore()
     let engine: TimerEngine
 

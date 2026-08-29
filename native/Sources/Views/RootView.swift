@@ -6,7 +6,10 @@ struct RootView: View {
     var body: some View {
         ZStack {
             BackgroundView(engine: app.engine)
-            ContentGate(app: app)
+            // The app opens straight to the timer. Nothing here is account
+            // based, so nothing may sit behind a login (guideline 5.1.1(v)).
+            MainView(engine: app.engine)
+                .environmentObject(app.pro)
         }
         .preferredColorScheme(.dark)
         .task { await app.bootstrap() }
@@ -20,26 +23,6 @@ private struct BackgroundView: View {
         ZStack {
             Theme.pageGradient.ignoresSafeArea()
             ParticleBackground(intense: engine.isRunning).ignoresSafeArea()
-        }
-    }
-}
-
-/// Switches between the Sign in with Apple screen and the main app.
-private struct ContentGate: View {
-    let app: AppModel
-    @ObservedObject private var auth: AuthManager
-
-    init(app: AppModel) {
-        self.app = app
-        _auth = ObservedObject(initialValue: app.auth)
-    }
-
-    var body: some View {
-        if auth.isSignedIn {
-            MainView(engine: app.engine, auth: app.auth)
-                .environmentObject(app.pro)
-        } else {
-            AuthView(auth: app.auth)
         }
     }
 }

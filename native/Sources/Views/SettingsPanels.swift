@@ -3,7 +3,6 @@ import SwiftUI
 struct SettingsPanels: View {
     @ObservedObject var engine: TimerEngine
     @ObservedObject var settings: AppSettings
-    @ObservedObject var auth: AuthManager
     @EnvironmentObject var pro: ProStore
     @State private var showDelete = false
 
@@ -84,11 +83,11 @@ struct SettingsPanels: View {
                 .buttonStyle(.plain)
             }
 
-            Panel(title: "ACCOUNT") {
+            Panel(title: "DATA") {
                 Button(role: .destructive) {
                     showDelete = true
                 } label: {
-                    Text("Delete Account")
+                    Text("Erase All Data")
                         .font(Theme.mono(11, .medium))
                         .foregroundStyle(Theme.errorRed)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -97,14 +96,11 @@ struct SettingsPanels: View {
             }
         }
         .confirmationDialog(
-            "Delete your account? This permanently erases your points, history, and synced data on all your Apple devices.",
+            "Erase all data? This permanently deletes your points, history, and synced data on all your Apple devices.",
             isPresented: $showDelete, titleVisibility: .visible
         ) {
             Button("Delete Everything", role: .destructive) {
-                Task {
-                    await engine.deleteAllData()
-                    auth.signOut()
-                }
+                Task { await engine.deleteAllData() }
             }
             Button("Cancel", role: .cancel) {}
         }

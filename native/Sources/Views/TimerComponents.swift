@@ -23,7 +23,6 @@ struct EInkCard<Content: View>: View {
 
 struct HeaderView: View {
     @ObservedObject var engine: TimerEngine
-    @ObservedObject var auth: AuthManager
     @EnvironmentObject var pro: ProStore
 
     var body: some View {
@@ -35,9 +34,6 @@ struct HeaderView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .foregroundStyle(Theme.ink)
-                if let name = auth.displayName {
-                    Text(name).font(Theme.mono(10)).foregroundStyle(Theme.gray666)
-                }
             }
             Spacer()
             if pro.isPro {

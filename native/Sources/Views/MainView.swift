@@ -2,14 +2,13 @@ import SwiftUI
 
 struct MainView: View {
     @ObservedObject var engine: TimerEngine
-    @ObservedObject var auth: AuthManager
     @EnvironmentObject var pro: ProStore
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             EInkCard {
                 VStack(spacing: 18) {
-                    HeaderView(engine: engine, auth: auth)
+                    HeaderView(engine: engine)
                     Divider().overlay(Color.black.opacity(0.1))
                     SeriesSelector(engine: engine)
                     ModeTabs(engine: engine)
@@ -18,7 +17,7 @@ struct MainView: View {
                     Controls(engine: engine)
                     Divider().overlay(Color.black.opacity(0.1)).padding(.top, 4)
                     ActivitySection(engine: engine)
-                    SettingsPanels(engine: engine, settings: engine.settings, auth: auth)
+                    SettingsPanels(engine: engine, settings: engine.settings)
                 }
             }
             .padding(.vertical, 24)
