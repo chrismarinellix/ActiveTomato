@@ -2923,9 +2923,6 @@
                     if (soundEnabled && audioCtxRef.current) {
                         playStartSound(audioCtxRef.current, masterGainRef.current);
                     }
-                    if (voiceCuesEnabled) {
-                        voiceCueSystem.announceStart(mode);
-                    }
                 } else {
                     if (soundEnabled && audioCtxRef.current) {
                         playPauseSound(audioCtxRef.current, masterGainRef.current);

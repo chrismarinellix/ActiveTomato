@@ -9,3 +9,4 @@ node_modules/
 # Tauri build artifacts
 src-tauri/target/
 package-lock.json
+.gstack/
